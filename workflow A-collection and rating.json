@@ -1,0 +1,722 @@
+{
+  "name": "[AI News Agent] A-collection and rating",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "id": "3de60421-016a-4de7-863e-8f204dddc98d",
+      "name": "Daily Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -80,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://openai.com/blog/rss.xml",
+        "options": {}
+      },
+      "id": "c51dc5d9-6861-4213-bbfc-64a0d8979120",
+      "name": "RSS - OpenAI Blog",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=Anthropic+AI+when:7d&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+        "options": {}
+      },
+      "id": "a39812bb-3a51-44ba-aa48-8f5d09ee2aa2",
+      "name": "RSS - Anthropic News",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=AI+when:7d&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
+        "options": {}
+      },
+      "id": "76aa1137-c5c7-49cc-bc8a-f90ffd4e5f89",
+      "name": "RSS - Google News AI",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "id": "09cfb03a-6ae0-4657-bac8-075d0cbd2ba8",
+      "name": "Merged Resources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        384,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "{Sheet ID}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": ,
+          "mode": "list",
+          "cachedResultName": "Processed",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid="
+        },
+        "options": {}
+      },
+      "id": "8d696959-c267-44f4-ad1e-3628260313df",
+      "name": "Read the Processed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        144,
+        208
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6fUhpw35rv9iWSYF",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-is-history",
+              "name": "isHistory",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "8d392777-2e5a-4c93-ae8d-514e2835d950",
+      "name": "Mark isHistory",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        384,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 去重：items 裡同時包含「歷史紀錄」(isHistory=true) 與「本次抓到的新聞」\n// 因為兩者都先匯流進同一個合併節點才到這裡，所以保證都已經到齊，不用跨節點引用\n// 歷史紀錄來自「Processed」表單，欄位名稱是「Link」；本次新聞來自RSS，欄位名稱是 link/guid\nconst seenLinks = new Set();\nfor (const item of items) {\n  if (item.json.isHistory) {\n    const l = (item.json['Link'] || '').trim();\n    if (l) seenLinks.add(l);\n  }\n}\n\nconst uniqueByLink = new Map();\nfor (const item of items) {\n  if (item.json.isHistory) continue;\n  const link = (item.json.link || item.json.guid || '').trim();\n  if (!link) continue;\n  if (seenLinks.has(link)) continue;\n  if (!uniqueByLink.has(link)) {\n    uniqueByLink.set(link, item);\n  }\n}\nreturn Array.from(uniqueByLink.values());"
+      },
+      "id": "6e56f121-29f4-4c35-823f-94319397f82d",
+      "name": "Filter Duplicates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 只保留過去7天內發布的新聞，並依Publication Date新到舊排序\n// 沒有日期資訊的項目為避免誤刪，暫時保留（可視需要改成排除）\nconst cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;\n\nconst withDate = items.map(item => {\n  const dateStr = item.json.isoDate || item.json.pubDate || '';\n  const t = dateStr ? new Date(dateStr).getTime() : NaN;\n  return { item, t };\n});\n\nconst filtered = withDate.filter(({ t }) => isNaN(t) || t >= cutoff);\n\nfiltered.sort((a, b) => {\n  if (isNaN(a.t)) return 1;\n  if (isNaN(b.t)) return -1;\n  return b.t - a.t;\n});\n\nreturn filtered.map(({ item }) => item);"
+      },
+      "id": "72b71ba9-cfd1-476b-8498-db10c3d0f3b4",
+      "name": "Time-based Filtering",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "maxItems": 20
+      },
+      "id": "df1c27bd-e581-497b-bd2c-9ba5b50161a9",
+      "name": "Quantity Limit",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        912,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 把所有候選新聞打包成一份清單，準備一次性送給 Gemini \nconst list = items.map((item, idx) => ({\n  idx,\n  title: item.json.title || '',\n  content: item.json.contentSnippet || item.json.content || '',\n  link: item.json.link || '',\n  pubDate: item.json.pubDate || item.json.isoDate || ''\n}));\n\nconst listText = list.map(i => `【${i.idx}】\\nTitle：${i.title}\\n內容：${i.content}\\n連結：${i.link}`).join('\\n\\n');\n\nconst prompt = `你是一家科技製造與研發企業的內部 AI 新聞篩選助手。\n你的任務是從多則新聞中，挑選並評估哪些新聞值得推薦給部門同仁閱讀。\n\n【部門背景】\n主要成員包含軟體、韌體與硬體之開發人員 (RD、PM、FL)。\n工作內容涵蓋：\n- PC 產業常見的作業系統、晶片、品牌生態系相關技術（例如 ChromeOS、Windows、各家處理器平台）\n- LLM、GenAI、AI Agent、Workflow Automation、API 整合、Cloud、DevOps、資料分析等 AI 相關技術\n\n【標準】\n請針對每一則新聞，用以下四個維度綜合判斷。下列關鍵字僅為範例、幫助你理解方向，並非窮舉清單，遇到語意相關但沒列出的詞彙（例如新出現的廠商、工具、技術名稱）也要視為相關：\n\n1. internal_relevance（部門相關性）\n新聞是否與部門工作內容、技術發展、產品、產業生態系或研發流程高度相關。\n例如：ChromeOS、Windows、AI PC、處理器平台、晶片廠商、Firmware、BIOS、Driver、Embedded、AI Agent、LLM、MCP、RAG、DevOps、Cloud、API、Workflow、自動化工具\n\n2. efficiency_value（效率提升價值）\n新聞是否能幫助同仁提升工作效率或團隊生產力。\n例如：AI 工具、自動化流程、程式開發工具、Coding Assistant、測試工具、DevOps、CI/CD、n8n、GitHub、Gemini、ChatGPT、Claude、Cursor、Copilot、NotebookLM、MCP、Agent Workflow、Prompt Engineering\n\n3. must_know（產業重要性）\n是否屬於科技、PC、AI、半導體、雲端、作業系統等領域的重要消息。\n例如：新產品發布、技術重大突破、生態系重大變化、法規政策、商業合作、企業併購、安全漏洞、市場趨勢、開源專案重大更新\n\n4. learning_value（AI/技術學習價值）\n是否有助於提升同仁的 AI、軟體工程、產品思維或技術能力，即使短期內與工作沒有直接關聯，也值得閱讀。\n例如：AI 趨勢、Prompt Engineering、LLM、AI Agent、軟體架構、系統設計、新開發框架、開源工具、新技術概念\n\n【方式】\n請根據以上四個維度，給予一個 0~10 的整數綜合Score：\n9~10：高度建議所有同仁閱讀，對部門或產業具有重大價值\n7~8：與工作或技術高度相關，或能明顯提升工作效率\n5~6：具有一定參考價值，但適合特定職能閱讀\n3~4：相關性有限，可選擇閱讀\n0~2：與部門工作關聯極低，不建議推薦\n\n【Category category】\n請從以下選項中選擇最適合的一個：\n知識、技術、工具、平台、產業、商業、開源、其他\n\n【輸出格式】\n請針對每一則新聞回傳一筆結果，最終「只回傳一個 JSON 陣列」，不要有任何 Markdown 標記或前後綴文字，格式如下：\n[\n  {\n    \"index\": 對應新聞編號(數字),\n    \"title\": \"精簡Title\",\n    \"summary\": \"2到3句話Summary，說明新聞重點及對部門可能的影響\",\n    \"category\": \"Category標籤\",\n    \"score\": 0到10的整數綜合Score,\n    \"reason\": \"一句話說明Reason\"\n  }\n]\n\n新聞清單：\n${listText}`;\n\nreturn [{ json: { prompt, items: list } }];"
+      },
+      "id": "fc6b8471-edfc-4d3c-8bf7-c95c82bb71dc",
+      "name": "Combined Batch Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-goog-api-key",
+              "value": "{Gemini API Key}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: $json.prompt } ] } ] }) }}",
+        "options": {}
+      },
+      "id": "e1845a93-65a9-4084-a0c3-21075fe6a30a",
+      "name": "Gemini Ratings and Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 解析 Gemini 一次回傳的 JSON 陣列，並對應回原始新聞\nconst raw = $json.candidates?.[0]?.content?.parts?.[0]?.text || '';\nconst cleaned = raw.replace(/```json|```/g, '').trim();\nlet parsedArray;\ntry {\n  parsedArray = JSON.parse(cleaned);\n} catch (e) {\n  return [];\n}\n\nconst originalItems = $('Combined Batch Request').item.json.items;\n\nconst results = [];\nfor (const p of parsedArray) {\n  const original = originalItems[p.index];\n  if (!original) continue;\n  results.push({\n    json: {\n      title: p.title || original.title,\n      summary: p.summary || '',\n      category: p.category || '',\n      score: Number(p.score) || 0,\n      reason: p.reason || '',\n      link: original.link,\n      pubDate: original.pubDate || ''\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "d64acd3e-c161-4bd2-bca6-5001d545001e",
+      "name": "Analysis of scoring results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              },
+              "id": "a12137c1-74bf-4fa8-b251-7b2f4ac07017"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fff81b3d-b7a4-48a3-afaf-26372314619d",
+      "name": "Score Judgment",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1664,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "{Sheet ID}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Pending",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Title": "={{ $json.title }}",
+            "Summary": "={{ $json.summary }}",
+            "Category": "={{ $json.category }}",
+            "Score": "={{ $json.score }}",
+            "Reason": "={{ $json.reason }}",
+            "Link": "={{ $json.link }}",
+            "Publication Date": "={{ $json.pubDate }}",
+            "Approved": false,
+            "Sent": false
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Link",
+              "displayName": "Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Publication Date",
+              "displayName": "Publication Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Approved",
+              "displayName": "Approved",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sent",
+              "displayName": "Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "d7ede594-387e-438c-ab37-55439095e5e0",
+      "name": "Write in Pending",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1936,
+        -304
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6fUhpw35rv9iWSYF",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "{Sheet ID}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": ,
+          "mode": "list",
+          "cachedResultName": "Processed",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid="
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Title": "={{ $json.title }}",
+            "Summary": "={{ $json.summary }}",
+            "Category": "={{ $json.category }}",
+            "Score": "={{ $json.score }}",
+            "Reason": "={{ $json.reason }}",
+            "Link": "={{ $json.link }}",
+            "Publication Date": "={{ $json.pubDate }}",
+            "Processing Date": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Link",
+              "displayName": "Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Publication Date",
+              "displayName": "Publication Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Processing Date",
+              "displayName": "Processing Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "bc41c9ca-11c5-4369-9500-3b354616086f",
+      "name": "Write in Processed",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1936,
+        -128
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6fUhpw35rv9iWSYF",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily Trigger": {
+      "main": [
+        [
+          {
+            "node": "RSS - OpenAI Blog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS - Anthropic News",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS - Google News AI",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read the Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS - OpenAI Blog": {
+      "main": [
+        [
+          {
+            "node": "Merged Resources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS - Anthropic News": {
+      "main": [
+        [
+          {
+            "node": "Merged Resources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "RSS - Google News AI": {
+      "main": [
+        [
+          {
+            "node": "Merged Resources",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Read the Processed": {
+      "main": [
+        [
+          {
+            "node": "Mark isHistory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark isHistory": {
+      "main": [
+        [
+          {
+            "node": "Merged Resources",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merged Resources": {
+      "main": [
+        [
+          {
+            "node": "Filter Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Time-based Filtering",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Time-based Filtering": {
+      "main": [
+        [
+          {
+            "node": "Quantity Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quantity Limit": {
+      "main": [
+        [
+          {
+            "node": "Combined Batch Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combined Batch Request": {
+      "main": [
+        [
+          {
+            "node": "Gemini Ratings and Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Ratings and Summary": {
+      "main": [
+        [
+          {
+            "node": "Analysis Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analysis Results": {
+      "main": [
+        [
+          {
+            "node": "Score Judgment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Judgment": {
+      "main": [
+        [
+          {
+            "node": "Write in Pending",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Write in Processed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Write in Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "fb7f1f19-d13d-473e-8a12-729c4cc98aad",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5809fbc9f91415fe41c10c0a1ba5a75695c7194d8a03549dd77ae46ffddc0d80"
+  },
+  "nodeGroups": [],
+  "id": "hHfNTWasD6tTZo5X",
+  "tags": [
+    {
+      "updatedAt": "2026-07-13T02:37:01.052Z",
+      "createdAt": "2026-07-13T02:37:01.052Z",
+      "id": "Vp3JuMcBZKQJ8mnf",
+      "name": "Test"
+    }
+  ]
+}
