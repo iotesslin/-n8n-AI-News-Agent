@@ -84,10 +84,10 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": ,
+          "value": "{Processed Sheet GID}",
           "mode": "list",
           "cachedResultName": "Processed",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid="
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid={Processed Sheet GID}"
         },
         "options": {}
       },
@@ -101,7 +101,7 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6fUhpw35rv9iWSYF",
+          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
           "name": "Google Sheets account"
         }
       }
@@ -171,7 +171,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 把所有候選新聞打包成一份清單，準備一次性送給 Gemini \nconst list = items.map((item, idx) => ({\n  idx,\n  title: item.json.title || '',\n  content: item.json.contentSnippet || item.json.content || '',\n  link: item.json.link || '',\n  pubDate: item.json.pubDate || item.json.isoDate || ''\n}));\n\nconst listText = list.map(i => `【${i.idx}】\\nTitle：${i.title}\\n內容：${i.content}\\n連結：${i.link}`).join('\\n\\n');\n\nconst prompt = `你是一家科技製造與研發企業的內部 AI 新聞篩選助手。\n你的任務是從多則新聞中，挑選並評估哪些新聞值得推薦給部門同仁閱讀。\n\n【部門背景】\n主要成員包含軟體、韌體與硬體之開發人員 (RD、PM、FL)。\n工作內容涵蓋：\n- PC 產業常見的作業系統、晶片、品牌生態系相關技術（例如 ChromeOS、Windows、各家處理器平台）\n- LLM、GenAI、AI Agent、Workflow Automation、API 整合、Cloud、DevOps、資料分析等 AI 相關技術\n\n【標準】\n請針對每一則新聞，用以下四個維度綜合判斷。下列關鍵字僅為範例、幫助你理解方向，並非窮舉清單，遇到語意相關但沒列出的詞彙（例如新出現的廠商、工具、技術名稱）也要視為相關：\n\n1. internal_relevance（部門相關性）\n新聞是否與部門工作內容、技術發展、產品、產業生態系或研發流程高度相關。\n例如：ChromeOS、Windows、AI PC、處理器平台、晶片廠商、Firmware、BIOS、Driver、Embedded、AI Agent、LLM、MCP、RAG、DevOps、Cloud、API、Workflow、自動化工具\n\n2. efficiency_value（效率提升價值）\n新聞是否能幫助同仁提升工作效率或團隊生產力。\n例如：AI 工具、自動化流程、程式開發工具、Coding Assistant、測試工具、DevOps、CI/CD、n8n、GitHub、Gemini、ChatGPT、Claude、Cursor、Copilot、NotebookLM、MCP、Agent Workflow、Prompt Engineering\n\n3. must_know（產業重要性）\n是否屬於科技、PC、AI、半導體、雲端、作業系統等領域的重要消息。\n例如：新產品發布、技術重大突破、生態系重大變化、法規政策、商業合作、企業併購、安全漏洞、市場趨勢、開源專案重大更新\n\n4. learning_value（AI/技術學習價值）\n是否有助於提升同仁的 AI、軟體工程、產品思維或技術能力，即使短期內與工作沒有直接關聯，也值得閱讀。\n例如：AI 趨勢、Prompt Engineering、LLM、AI Agent、軟體架構、系統設計、新開發框架、開源工具、新技術概念\n\n【方式】\n請根據以上四個維度，給予一個 0~10 的整數綜合Score：\n9~10：高度建議所有同仁閱讀，對部門或產業具有重大價值\n7~8：與工作或技術高度相關，或能明顯提升工作效率\n5~6：具有一定參考價值，但適合特定職能閱讀\n3~4：相關性有限，可選擇閱讀\n0~2：與部門工作關聯極低，不建議推薦\n\n【Category category】\n請從以下選項中選擇最適合的一個：\n知識、技術、工具、平台、產業、商業、開源、其他\n\n【輸出格式】\n請針對每一則新聞回傳一筆結果，最終「只回傳一個 JSON 陣列」，不要有任何 Markdown 標記或前後綴文字，格式如下：\n[\n  {\n    \"index\": 對應新聞編號(數字),\n    \"title\": \"精簡Title\",\n    \"summary\": \"2到3句話Summary，說明新聞重點及對部門可能的影響\",\n    \"category\": \"Category標籤\",\n    \"score\": 0到10的整數綜合Score,\n    \"reason\": \"一句話說明Reason\"\n  }\n]\n\n新聞清單：\n${listText}`;\n\nreturn [{ json: { prompt, items: list } }];"
+        "jsCode": "// 把所有候選新聞打包成一份清單，準備一次性送給 Gemini \nconst list = items.map((item, idx) => ({\n  idx,\n  title: item.json.title || '',\n  content: item.json.contentSnippet || item.json.content || '',\n  link: item.json.link || '',\n  pubDate: item.json.pubDate || item.json.isoDate || ''\n}));\n\nconst listText = list.map(i => `【${i.idx}】\\nTitle：${i.title}\\n內容：${i.content}\\n連結：${i.link}`).join('\\n\\n');\n\nconst prompt = `你是企業內部的 AI 新聞篩選助手。\n你的任務是從多則新聞中，挑選並評估哪些新聞值得推薦給部門同仁閱讀。\n\n【部門背景】\n主要成員包含軟體、韌體與硬體之開發人員與管理人員 (RD、PM、FL)。\n工作內容涵蓋：\n- PC 產業常見的作業系統、晶片、品牌生態系相關技術 \n- LLM、GenAI、AI Agent、Workflow Automation、API 整合、Cloud、DevOps、資料分析等 AI 相關技術\n\n【標準】\n請針對每一則新聞，用以下四個維度綜合判斷。下列關鍵字僅為範例、幫助你理解方向，並非窮舉清單，遇到語意相關但沒列出的詞彙（例如新出現的廠商、工具、技術名稱）也要視為相關：\n\n1. internal_relevance（部門相關性）\n新聞是否與部門工作內容、技術發展、產品、產業生態系或研發流程高度相關。\n例如：OS、Windows、AI PC、處理器平台、晶片廠商、Firmware、BIOS、Driver、Embedded、AI Agent、LLM、MCP、RAG、DevOps、Cloud、API、Workflow、自動化工具\n\n2. efficiency_value（效率提升價值）\n新聞是否能幫助同仁提升工作效率或團隊生產力。\n例如：AI 工具、自動化流程、程式開發工具、Coding Assistant、測試工具、DevOps、CI/CD、n8n、GitHub、Gemini、ChatGPT、Claude、Cursor、Copilot、NotebookLM、MCP、Agent Workflow、Prompt Engineering\n\n3. must_know（產業重要性）\n是否屬於科技、PC、AI、半導體、雲端、作業系統等領域的重要消息。\n例如：新產品發布、技術重大突破、生態系重大變化、法規政策、商業合作、企業併購、安全漏洞、市場趨勢、開源專案重大更新\n\n4. learning_value（AI/技術學習價值）\n是否有助於提升同仁的 AI、軟體工程、產品思維或技術能力，即使短期內與工作沒有直接關聯，也值得閱讀。\n例如：AI 趨勢、Prompt Engineering、LLM、AI Agent、軟體架構、系統設計、新開發框架、開源工具、新技術概念\n\n【方式】\n請根據以上四個維度，給予一個 0~10 的整數綜合Score：\n9~10：高度建議所有同仁閱讀，對部門或產業具有重大價值\n7~8：與工作或技術高度相關，或能明顯提升工作效率\n5~6：具有一定參考價值，但適合特定職能閱讀\n3~4：相關性有限，可選擇閱讀\n0~2：與部門工作關聯極低，不建議推薦\n\n【Category category】\n請從以下選項中選擇最適合的一個：\n知識、技術、工具、平台、產業、商業、開源、其他\n\n【輸出格式】\n請針對每一則新聞回傳一筆結果，最終「只回傳一個 JSON 陣列」，不要有任何 Markdown 標記或前後綴文字，格式如下：\n[\n  {\n    \"index\": 對應新聞編號(數字),\n    \"title\": \"精簡Title\",\n    \"summary\": \"2到3句話Summary，說明新聞重點及對部門可能的影響\",\n    \"category\": \"Category標籤\",\n    \"score\": 0到10的整數綜合Score,\n    \"reason\": \"一句話說明Reason\"\n  }\n]\n\n新聞清單：\n${listText}`;\n\nreturn [{ json: { prompt, items: list } }];"
       },
       "id": "fc6b8471-edfc-4d3c-8bf7-c95c82bb71dc",
       "name": "Combined Batch Request",
@@ -386,7 +386,7 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6fUhpw35rv9iWSYF",
+          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
           "name": "Google Sheets account"
         }
       }
@@ -401,10 +401,10 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": ,
+          "value": "{Processed Sheet GID}",
           "mode": "list",
           "cachedResultName": "Processed",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid="
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid={Processed Sheet GID}"
         },
         "columns": {
           "mappingMode": "defineBelow",
@@ -508,7 +508,7 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "6fUhpw35rv9iWSYF",
+          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
           "name": "Google Sheets account"
         }
       }
@@ -656,14 +656,14 @@
       "main": [
         [
           {
-            "node": "Analysis Results",
+            "node": "Analysis of scoring results",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Analysis Results": {
+    "Analysis of scoring results": {
       "main": [
         [
           {
@@ -704,18 +704,9 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "fb7f1f19-d13d-473e-8a12-729c4cc98aad",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "5809fbc9f91415fe41c10c0a1ba5a75695c7194d8a03549dd77ae46ffddc0d80"
-  },
   "nodeGroups": [],
-  "id": "hHfNTWasD6tTZo5X",
   "tags": [
     {
-      "updatedAt": "2026-07-13T02:37:01.052Z",
-      "createdAt": "2026-07-13T02:37:01.052Z",
-      "id": "Vp3JuMcBZKQJ8mnf",
       "name": "Test"
     }
   ]
