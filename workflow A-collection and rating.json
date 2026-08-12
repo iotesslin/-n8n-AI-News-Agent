@@ -171,7 +171,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 把所有候選新聞打包成一份清單，準備一次性送給 Gemini 評分\nconst list = items.map((item, idx) => ({\n  idx,\n  title: item.json.title || '',\n  content: item.json.contentSnippet || item.json.content || '',\n  link: item.json.link || '',\n  pubDate: item.json.pubDate || item.json.isoDate || ''\n}));\n\nconst listText = list.map(i => `【${i.idx}】\\n標題：${i.title}\\n內容：${i.content}\\n連結：${i.link}`).join('\\n\\n');\n\nconst prompt = `你是一家科技製造與研發企業的內部 AI 新聞篩選助手。\n你的任務是從多則新聞中，挑選並評估哪些新聞值得推薦給部門同仁閱讀。\n\n【部門背景】\n主要成員包含軟體、韌體與硬體之開發人員 (RD、PM、FL)。\n工作內容涵蓋：\n- PC 產業常見的作業系統、晶片、品牌生態系相關技術（例如 ChromeOS、Windows、各家處理器平台）\n- LLM、GenAI、AI Agent、Workflow Automation、API 整合、Cloud、DevOps、資料分析等 AI 相關技術\n- AI 軟硬整合應用：將 AI／LLM 能力實際做成消費性或企業硬體裝置（例如 AI 智慧喇叭、AI 穿戴裝置、AI PC／NPU 加速硬體、機器人、Edge AI 裝置），涉及新裝置發表、技術架構、供應鏈或商業模式的報導\n- 邊緣裝置與嵌入式系統：ChromeOS、Android/嵌入式 Linux、Embedded 系統與 AI 能力的整合，例如作業系統廠商或硬體品牌將 AI 助理、AI 功能直接內建到裝置端的報導\n- 開源與多元 AI 生態系：不限於 OpenAI／Anthropic／Google Gemini 等大廠，也包含開源框架與工具（例如 LangChain、AutoGen、CrewAI）、以及中國大陸的模型與產品發展（例如 DeepSeek、通義千問、Kimi、豆包等）\n- AI 實務操作分享：具體的 AI 工具使用教學、操作技巧、實測心得、應用案例分享，能讓同仁直接學習如何運用 AI 工具於實際工作\n\n【評分標準】\n請針對每一則新聞，用以下四個維度綜合判斷。下列關鍵字僅為範例、幫助你理解方向，並非窮舉清單，遇到語意相關但沒列出的詞彙（例如新出現的廠商、工具、技術名稱）也要視為相關：\n\n1. internal_relevance（部門相關性）\n新聞是否與部門工作內容、技術發展、產品、產業生態系或研發流程高度相關。\n例如：ChromeOS、Windows、AI PC、處理器平台、晶片廠商、Firmware、BIOS、Driver、Embedded、AI Agent、LLM、MCP、RAG、DevOps、Cloud、API、Workflow、自動化工具、AI 軟硬整合裝置（智慧喇叭、穿戴裝置、機器人、Edge AI 硬體）、開源框架（LangChain、AutoGen、CrewAI）、中國大陸模型生態（DeepSeek、通義千問、Kimi、豆包）\n\n2. efficiency_value（效率提升價值）\n新聞是否能幫助同仁提升工作效率或團隊生產力。\n例如：AI 工具、自動化流程、程式開發工具、Coding Assistant、測試工具、DevOps、CI/CD、n8n、GitHub、Gemini、ChatGPT、Claude、Cursor、Copilot、NotebookLM、MCP、Agent Workflow、Prompt Engineering\n\n3. must_know（產業重要性）\n是否屬於科技、PC、AI、半導體、雲端、作業系統等領域的重要消息。\n例如：新產品發布、技術重大突破、生態系重大變化、法規政策、商業合作、企業併購、安全漏洞、市場趨勢、開源專案重大更新、AI 軟硬整合新裝置發表（如 AI 新創跨足硬體、消費性 AI 裝置上市）\n\n4. learning_value（AI/技術學習價值）\n是否有助於提升同仁的 AI、軟體工程、產品思維或技術能力，即使短期內與工作沒有直接關聯，也值得閱讀。\n例如：AI 趨勢、Prompt Engineering、LLM、AI Agent、軟體架構、系統設計、新開發框架、開源工具、新技術概念、AI 軟硬整合的產品設計思路、AI 工具實測與操作教學、跨模型比較（不同廠商/開源模型的能力差異）\n\n【排除規則】\n以下類型內容即使標題含有相關關鍵字，也應視為與部門工作及產業洞察的實質關聯較低，須明顯降低 internal_relevance 與 must_know 分數（不應僅因關鍵字命中就給高分）：\n- 純粹的品牌／廠商活動宣傳，例如路演（Road Show）、World Tour、展會邀請、行銷發布會預告，且內容缺乏具體技術細節、產品規格或產業分析\n- 純業配、置入性行銷、公關通稿性質的內容\n- 標題聳動但內文空洞、僅重複標題資訊、沒有實質新資訊的內容\n\n判斷原則：一則新聞若主要在「宣傳某活動或品牌形象」而非「傳遞具體的技術/產品/產業資訊」，即使提到 AI、Edge AI 等關鍵字，也不應給予高分。\n\n【評分方式】\n請根據以上四個維度，給予一個 0~10 的整數綜合分數：\n9~10：高度建議所有同仁閱讀，對部門或產業具有重大價值\n7~8：與工作或技術高度相關，或能明顯提升工作效率\n5~6：具有一定參考價值，但適合特定職能閱讀\n3~4：相關性有限，可選擇閱讀\n0~2：與部門工作關聯極低，不建議推薦（含前述排除規則中的純宣傳／業配內容）\n\n【分類 category】\n請從以下選項中選擇最適合的一個：\n知識、技術、工具、平台、產業、商業、開源、其他\n\n【輸出格式】\n請針對每一則新聞回傳一筆結果，最終「只回傳一個 JSON 陣列」，不要有任何 Markdown 標記或前後綴文字，格式如下：\n[\n  {\n    \"index\": 對應新聞編號(數字),\n    \"title\": \"精簡標題\",\n    \"summary\": \"2到3句話摘要，說明新聞重點及對部門可能的影響\",\n    \"category\": \"分類標籤\",\n    \"score\": 0到10的整數綜合分數,\n    \"reason\": \"一句話說明評分理由\"\n  }\n]\n\n新聞清單：\n${listText}`;\n\nreturn [{ json: { prompt, items: list } }];\n"
+        "jsCode": "// 把所有候選新聞打包成一份清單，準備一次性送給 Gemini 評分\n// ChromeOS/Chromebook 相關與否用關鍵字判斷，不交給 Gemini，避免增加語意判斷負擔\nconst chromeOsPattern = /chrome\\s?os|chromebook/i;\nconst list = items.map((item, idx) => {\n  const title = item.json.title || '';\n  const content = item.json.contentSnippet || item.json.content || '';\n  return {\n    idx,\n    title,\n    content,\n    link: item.json.link || '',\n    pubDate: item.json.pubDate || item.json.isoDate || '',\n    isChromeOS: chromeOsPattern.test(title) || chromeOsPattern.test(content)\n  };\n});\n\nconst listText = list.map(i => `【${i.idx}】\\n標題：${i.title}\\n內容：${i.content}\\n連結：${i.link}`).join('\\n\\n');\n\nconst prompt = `你是一家科技製造與研發企業的內部 AI 新聞篩選助手。\n你的任務是從多則新聞中，挑選並評估哪些新聞值得推薦給部門同仁閱讀。\n\n【部門背景】\n主要成員包含軟體、韌體與硬體之開發人員 (RD、PM、FL)。\n工作內容涵蓋：\n- PC 產業常見的作業系統、晶片、品牌生態系相關技術（例如 ChromeOS、Windows、各家處理器平台）\n- LLM、GenAI、AI Agent、Workflow Automation、API 整合、Cloud、DevOps、資料分析等 AI 相關技術\n- AI 軟硬整合應用：將 AI／LLM 能力實際做成消費性或企業硬體裝置（例如 AI 智慧喇叭、AI 穿戴裝置、AI PC／NPU 加速硬體、機器人、Edge AI 裝置），涉及新裝置發表、技術架構、供應鏈或商業模式的報導\n- 邊緣裝置與嵌入式系統：ChromeOS、Android/嵌入式 Linux、Embedded 系統與 AI 能力的整合，例如作業系統廠商或硬體品牌將 AI 助理、AI 功能直接內建到裝置端的報導\n- 開源與多元 AI 生態系：不限於 OpenAI／Anthropic／Google Gemini 等大廠，也包含開源框架與工具（例如 LangChain、AutoGen、CrewAI）、以及中國大陸的模型與產品發展（例如 DeepSeek、通義千問、Kimi、豆包等）\n- AI 實務操作分享：具體的 AI 工具使用教學、操作技巧、實測心得、應用案例分享，能讓同仁直接學習如何運用 AI 工具於實際工作\n\n【評分標準】\n請針對每一則新聞，用以下四個維度綜合判斷。下列關鍵字僅為範例、幫助你理解方向，並非窮舉清單，遇到語意相關但沒列出的詞彙（例如新出現的廠商、工具、技術名稱）也要視為相關：\n\n1. internal_relevance（部門相關性）\n新聞是否與部門工作內容、技術發展、產品、產業生態系或研發流程高度相關。\n例如：ChromeOS、Windows、AI PC、處理器平台、晶片廠商、Firmware、BIOS、Driver、Embedded、AI Agent、LLM、MCP、RAG、DevOps、Cloud、API、Workflow、自動化工具、AI 軟硬整合裝置（智慧喇叭、穿戴裝置、機器人、Edge AI 硬體）、開源框架（LangChain、AutoGen、CrewAI）、中國大陸模型生態（DeepSeek、通義千問、Kimi、豆包）\n\n2. efficiency_value（效率提升價值）\n新聞是否能幫助同仁提升工作效率或團隊生產力。\n例如：AI 工具、自動化流程、程式開發工具、Coding Assistant、測試工具、DevOps、CI/CD、n8n、GitHub、Gemini、ChatGPT、Claude、Cursor、Copilot、NotebookLM、MCP、Agent Workflow、Prompt Engineering\n\n3. must_know（產業重要性）\n是否屬於科技、PC、AI、半導體、雲端、作業系統等領域的重要消息。\n例如：新產品發布、技術重大突破、生態系重大變化、法規政策、商業合作、企業併購、安全漏洞、市場趨勢、開源專案重大更新、AI 軟硬整合新裝置發表（如 AI 新創跨足硬體、消費性 AI 裝置上市）\n\n4. learning_value（AI/技術學習價值）\n是否有助於提升同仁的 AI、軟體工程、產品思維或技術能力，即使短期內與工作沒有直接關聯，也值得閱讀。\n例如：AI 趨勢、Prompt Engineering、LLM、AI Agent、軟體架構、系統設計、新開發框架、開源工具、新技術概念、AI 軟硬整合的產品設計思路、AI 工具實測與操作教學、跨模型比較（不同廠商/開源模型的能力差異）\n\n【排除規則】\n以下類型內容即使標題含有相關關鍵字，也應視為與部門工作及產業洞察的實質關聯較低，須明顯降低 internal_relevance 與 must_know 分數（不應僅因關鍵字命中就給高分）：\n- 純粹的品牌／廠商活動宣傳，例如路演（Road Show）、World Tour、展會邀請、行銷發布會預告，且內容缺乏具體技術細節、產品規格或產業分析\n- 純業配、置入性行銷、公關通稿性質的內容\n- 標題聳動但內文空洞、僅重複標題資訊、沒有實質新資訊的內容\n\n判斷原則：一則新聞若主要在「宣傳某活動或品牌形象」而非「傳遞具體的技術/產品/產業資訊」，即使提到 AI、Edge AI 等關鍵字，也不應給予高分。\n\n【評分方式】\n請根據以上四個維度，給予一個 0~10 的整數綜合分數：\n9~10：高度建議所有同仁閱讀，對部門或產業具有重大價值\n7~8：與工作或技術高度相關，或能明顯提升工作效率\n5~6：具有一定參考價值，但適合特定職能閱讀\n3~4：相關性有限，可選擇閱讀\n0~2：與部門工作關聯極低，不建議推薦（含前述排除規則中的純宣傳／業配內容）\n\n【分類 category】\n請從以下四個類別中，依「報導的主要角度」選擇一個最適合的類別（單選，不可多選）：\n\n1. 應用類\n定義：讀者今天就可能實際拿來操作、安裝、使用或參考操作方式的東西。\n包含：軟體工具、平台服務、開源專案（工具/框架/函式庫本身)、操作教學、實測心得、應用案例分享。\n判斷重點：報導的重點是「這個東西怎麼用、能不能用」，而不是「這件事對市場代表什麼」。\n\n2. 知識類\n定義：偏向閱讀性質的技術新知、概念說明、研究內容，讀了會長知識，但不一定馬上能操作應用。\n包含：技術原理說明、研究論文／技術突破、架構設計思路、新技術概念介紹。\n判斷重點：報導的重點是「這是什麼、為什麼重要」，而不是「教你怎麼做」或「這代表什麼商業動作」。\n\n3. 產業類\n定義：了解產業趨勢、市場動態、重大商業消息用的內容，即使主角是某個產品或工具，但報導重點在其代表的市場意義。\n包含：新產品/新裝置發表的市場意義、公司合作／併購、商業模式、生態系變化、法規政策、市場趨勢。\n判斷重點：報導的重點是「誰做了什麼動作、對市場/生態系代表什麼」，而不是「這個東西怎麼用」。\n\n4. 其他類\n僅在完全不屬於以上三類時使用。若一則新聞同時沾到多個類別，請選擇「報導篇幅或標題最主要強調」的那一類，不要因為難以判斷就歸類到其他類——其他類應該是少數例外，不是預設選項。\n\n【輸出格式】\n請針對每一則新聞回傳一筆結果，最終「只回傳一個 JSON 陣列」，不要有任何 Markdown 標記或前後綴文字，格式如下：\n[\n  {\n    \"index\": 對應新聞編號(數字),\n    \"title\": \"精簡標題\",\n    \"summary\": \"2到3句話摘要，說明新聞重點及對部門可能的影響\",\n    \"category\": \"分類標籤\",\n    \"score\": 0到10的整數綜合分數,\n    \"reason\": \"一句話說明評分理由\"\n  }\n]\n\n新聞清單：\n${listText}`;\n\nreturn [{ json: { prompt, items: list } }];\n"
       },
       "id": "fc6b8471-edfc-4d3c-8bf7-c95c82bb71dc",
       "name": "組合批次請求",
@@ -215,7 +215,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 解析 Gemini 一次回傳的 JSON 陣列，並對應回原始新聞\nconst raw = $json.candidates?.[0]?.content?.parts?.[0]?.text || '';\nconst cleaned = raw.replace(/```json|```/g, '').trim();\nlet parsedArray;\ntry {\n  parsedArray = JSON.parse(cleaned);\n} catch (e) {\n  return [];\n}\n\nconst originalItems = $('組合批次請求').item.json.items;\n\nconst results = [];\nfor (const p of parsedArray) {\n  const original = originalItems[p.index];\n  if (!original) continue;\n  results.push({\n    json: {\n      title: p.title || original.title,\n      summary: p.summary || '',\n      category: p.category || '',\n      score: Number(p.score) || 0,\n      reason: p.reason || '',\n      link: original.link,\n      pubDate: original.pubDate || ''\n    }\n  });\n}\nreturn results;"
+        "jsCode": "// 解析 Gemini 一次回傳的 JSON 陣列，並對應回原始新聞\nconst raw = $json.candidates?.[0]?.content?.parts?.[0]?.text || '';\nconst cleaned = raw.replace(/```json|```/g, '').trim();\nlet parsedArray;\ntry {\n  parsedArray = JSON.parse(cleaned);\n} catch (e) {\n  return [];\n}\n\nconst originalItems = $('組合批次請求').item.json.items;\n\nconst results = [];\nfor (const p of parsedArray) {\n  const original = originalItems[p.index];\n  if (!original) continue;\n  results.push({\n    json: {\n      title: p.title || original.title,\n      summary: p.summary || '',\n      category: p.category || '',\n      score: Number(p.score) || 0,\n      reason: p.reason || '',\n      link: original.link,\n      pubDate: original.pubDate || '',\n      isChromeOS: original.isChromeOS || false\n    }\n  });\n}\nreturn results;"
       },
       "id": "d64acd3e-c161-4bd2-bca6-5001d545001e",
       "name": "解析評分結果",
@@ -285,7 +285,8 @@
             "來源連結": "={{ $json.link }}",
             "發布日期": "={{ $json.pubDate }}",
             "核可": false,
-            "已寄送": false
+            "已寄送": false,
+            "ChromeOS相關": "={{ $json.isChromeOS }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -369,6 +370,15 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "ChromeOS相關",
+              "displayName": "ChromeOS相關",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -416,7 +426,8 @@
             "評分理由": "={{ $json.reason }}",
             "來源連結": "={{ $json.link }}",
             "發布日期": "={{ $json.pubDate }}",
-            "處理時間": "={{ $now.toISO() }}"
+            "處理時間": "={{ $now.toISO() }}",
+            "ChromeOS相關": "={{ $json.isChromeOS }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -486,6 +497,15 @@
             {
               "id": "處理時間",
               "displayName": "處理時間",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ChromeOS相關",
+              "displayName": "ChromeOS相關",
               "required": false,
               "defaultMatch": false,
               "display": true,
