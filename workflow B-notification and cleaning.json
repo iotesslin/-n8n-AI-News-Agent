@@ -38,18 +38,6 @@
           "cachedResultName": "待審核",
           "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
         },
-					  
-					 
-			 
-									   
-								   
-			  
-			 
-										  
-									
-			 
-		   
-		  
         "options": {}
       },
       "id": "57e1b8cb-ae7e-43a4-af22-3427ae2279cd",
@@ -102,7 +90,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 將所有核可項目依 ChromeOS 專區 + 四大分類分組彙整成 HTML 公告內容\n// ChromeOS 相關新聞獨立成專區，不進入四大分類的排序池，避免重複出現、也避免佔用其他分類的名額\nconst items = $input.all();\n\nfunction toBool(v) {\n  if (typeof v === 'boolean') return v;\n  if (typeof v === 'string') return v.trim().toLowerCase() === 'true';\n  return false;\n}\n\nfunction scoreToStars(score) {\n  const s = Number(score) || 0;\n  const stars = Math.max(1, Math.min(5, s - 5));\n  return '★'.repeat(stars) + '☆'.repeat(5 - stars);\n}\n\n// 分數為主要排序依據，同分時用發布日期，新的優先\nfunction sortItems(list) {\n  return [...list].sort((a, b) => {\n    const scoreDiff = (Number(b.json['分數']) || 0) - (Number(a.json['分數']) || 0);\n    if (scoreDiff !== 0) return scoreDiff;\n    const dateA = new Date(a.json['發布日期'] || 0).getTime() || 0;\n    const dateB = new Date(b.json['發布日期'] || 0).getTime() || 0;\n    return dateB - dateA;\n  });\n}\n\nfunction renderItem(j, accent, isTop) {\n  const titleSize = isTop ? '14px' : '11px';\n  const summaryHtml = isTop\n    ? `<div style=\"font-size:13px;color:#555;line-height:1.6;margin-top:4px;\">${j['摘要'] || ''}</div>`\n    : '';\n  return `\n    <div style=\"border-bottom:1px solid rgba(0,0,0,0.08);padding:8px 0;\">\n      <a href=\"${j['來源連結']}\" style=\"font-size:${titleSize};font-weight:600;color:${accent};text-decoration:none;\" target=\"_blank\">${j['標題']}</a>\n      <div style=\"color:#F5A623;font-size:12px;letter-spacing:1px;margin-top:4px;\">${scoreToStars(j['分數'])}</div>\n      ${summaryHtml}\n    </div>`;\n}\n\nfunction renderBlock(label, accent, bg, list) {\n  if (list.length === 0) return '';\n  const sorted = sortItems(list);\n  const top = sorted.slice(0, 3);\n  const extra = sorted.slice(3);\n  const topLabel = top.length === 3 ? 'Top 3' : (top.length === 2 ? 'Top 2' : 'Top 1');\n\n  const topHtml = top.map(i => renderItem(i.json, accent, true)).join('');\n  const extraHtml = extra.length > 0\n    ? `<p style=\"font-size:12px;color:#888;margin:10px 0 4px;\">其他高分項目</p>` +\n      extra.map(i => renderItem(i.json, accent, false)).join('')\n    : '';\n\n  return `\n    <div style=\"background:${bg};border-radius:12px;padding:14px 16px;margin-bottom:16px;\">\n      <p style=\"font-size:18px;font-weight:600;color:${accent};margin:0 0 8px;\">${label} <span style=\"font-size:12px;font-weight:400;\">${topLabel}</span></p>\n      ${topHtml}\n      ${extraHtml}\n    </div>`;\n}\n\nconst chromeOsItems = items.filter(i => toBool(i.json['ChromeOS相關']));\nconst nonChromeOsItems = items.filter(i => !toBool(i.json['ChromeOS相關']));\n\nconst categories = [\n  { key: '應用類', accent: '#185FA5', bg: '#E6F1FB' },\n  { key: '知識類', accent: '#A32D2D', bg: '#FCEBEB' },\n  { key: '產業類', accent: '#3B6D11', bg: '#EAF3DE' },\n  { key: '其他類', accent: '#5F5E5A', bg: '#F1EFE8' }\n];\n\nlet blocksHtml = renderBlock('ChromeOS 專區', '#854F0B', '#FAEEDA', chromeOsItems);\nfor (const cat of categories) {\n  const list = nonChromeOsItems.filter(i => i.json['分類'] === cat.key);\n  blocksHtml += renderBlock(cat.key, cat.accent, cat.bg, list);\n}\n\nfunction fmt(d) {\n  const y = d.getFullYear();\n  const m = String(d.getMonth() + 1).padStart(2, '0');\n  const day = String(d.getDate()).padStart(2, '0');\n  return `${y}/${m}/${day}`;\n}\n\nconst now = new Date();\nconst rangeStart = new Date(now);\nrangeStart.setDate(now.getDate() - 7);\nconst rangeEnd = new Date(now);\nrangeEnd.setDate(now.getDate() - 0);\n\nconst weekLabel = `${fmt(rangeStart)}~${fmt(rangeEnd)}`;\n\nconst html = `\n<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;\">\n  <p style=\"font-size:13px;color:#666;\">您好，\n以下整理過去一週內值得關注的重點新聞，內容經由 Gemini 篩選並聚焦於與 AI 相關之軟硬體開發、生產力工具、PC 生態等重要資訊，希望協助大家快速掌握最新技術趨勢與產業動態，作為工作及學習參考。</p>\n  <h2 style=\"font-size:18px;color:#222;\">本週新聞精選（${weekLabel}）</h2>\n  ${blocksHtml}\n  <p style=\"font-size:12px;color:#999;margin-top:16px;\">本公告由 AI News Agent 自動彙整並經人工審核發出，僅提供 NSDD 內部人員參閱。</p>\n</div>`;\n\nreturn [{ json: { html, count: items.length, weekLabel } }];\n"
+        "jsCode": "// 將所有核可項目依 ChromeOS 專區 + 四大分類分組彙整成 HTML 公告內容\n// ChromeOS 相關新聞獨立成專區，不進入四大分類的排序池，避免重複出現、也避免佔用其他分類的名額\nconst items = $input.all();\n\nfunction toBool(v) {\n  if (typeof v === 'boolean') return v;\n  if (typeof v === 'string') return v.trim().toLowerCase() === 'true';\n  return false;\n}\n\nfunction scoreToStars(score) {\n  const s = Number(score) || 0;\n  const stars = Math.max(1, Math.min(5, s - 5));\n  return '★'.repeat(stars) + '☆'.repeat(5 - stars);\n}\n\n// 分數為主要排序依據，同分時用發布日期，新的優先\nfunction sortItems(list) {\n  return [...list].sort((a, b) => {\n    const scoreDiff = (Number(b.json['分數']) || 0) - (Number(a.json['分數']) || 0);\n    if (scoreDiff !== 0) return scoreDiff;\n    const dateA = new Date(a.json['發布日期'] || 0).getTime() || 0;\n    const dateB = new Date(b.json['發布日期'] || 0).getTime() || 0;\n    return dateB - dateA;\n  });\n}\n\nfunction renderItem(j, accent, isTop) {\n  const titleSize = isTop ? '14px' : '11px';\n  const summaryHtml = isTop\n    ? `<div style=\"font-size:13px;color:#555;line-height:1.6;margin-top:4px;\">${j['摘要'] || ''}</div>`\n    : '';\n  return `\n    <div style=\"border-bottom:1px solid rgba(0,0,0,0.08);padding:8px 0;\">\n      <a href=\"${j['來源連結']}\" style=\"font-size:${titleSize};font-weight:600;color:${accent};text-decoration:none;\" target=\"_blank\">${j['標題']}</a>\n      <div style=\"color:#F5A623;font-size:12px;letter-spacing:1px;margin-top:4px;\">${scoreToStars(j['分數'])}</div>\n      ${summaryHtml}\n    </div>`;\n}\n\nfunction renderBlock(label, accent, bg, list) {\n  if (list.length === 0) return '';\n  const sorted = sortItems(list);\n  const top = sorted.slice(0, 3);\n  const extra = sorted.slice(3);\n  const topLabel = top.length === 3 ? 'Top 3' : (top.length === 2 ? 'Top 2' : 'Top 1');\n\n  const topHtml = top.map(i => renderItem(i.json, accent, true)).join('');\n  const extraHtml = extra.length > 0\n    ? `<p style=\"font-size:12px;color:#888;margin:10px 0 4px;\">其他高分項目</p>` +\n      extra.map(i => renderItem(i.json, accent, false)).join('')\n    : '';\n\n  return `\n    <div style=\"margin-bottom:16px;\">\n      <p style=\"background:${bg};color:${accent};font-size:18px;font-weight:600;margin:0;padding:8px 16px;border-radius:8px;\">${label} <span style=\"font-size:12px;font-weight:400;\">${topLabel}</span></p>\n      <div style=\"padding:4px 16px 8px;\">\n        ${topHtml}\n        ${extraHtml}\n      </div>\n    </div>`;\n}\n\nconst chromeOsItems = items.filter(i => toBool(i.json['ChromeOS相關']));\nconst nonChromeOsItems = items.filter(i => !toBool(i.json['ChromeOS相關']));\n\nconst categories = [\n  { key: '應用類', accent: '#185FA5', bg: '#E6F1FB' },\n  { key: '知識類', accent: '#A32D2D', bg: '#FCEBEB' },\n  { key: '產業類', accent: '#3B6D11', bg: '#EAF3DE' },\n  { key: '其他類', accent: '#5F5E5A', bg: '#F1EFE8' }\n];\n\nlet blocksHtml = renderBlock('ChromeOS 專區', '#854F0B', '#FAEEDA', chromeOsItems);\nfor (const cat of categories) {\n  const list = nonChromeOsItems.filter(i => i.json['分類'] === cat.key);\n  blocksHtml += renderBlock(cat.key, cat.accent, cat.bg, list);\n}\n\nfunction fmt(d) {\n  const y = d.getFullYear();\n  const m = String(d.getMonth() + 1).padStart(2, '0');\n  const day = String(d.getDate()).padStart(2, '0');\n  return `${y}/${m}/${day}`;\n}\n\nconst now = new Date();\nconst rangeStart = new Date(now);\nrangeStart.setDate(now.getDate() - 7);\nconst rangeEnd = new Date(now);\nrangeEnd.setDate(now.getDate() - 0);\n\nconst weekLabel = `${fmt(rangeStart)}~${fmt(rangeEnd)}`;\n\nconst html = `\n<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;\">\n  <p style=\"font-size:13px;color:#666;\">您好，\n以下整理過去一週內值得關注的重點新聞，內容經由 Gemini 篩選並聚焦於與 AI 相關之軟硬體開發、生產力工具、PC 生態等重要資訊，希望協助大家快速掌握最新技術趨勢與產業動態，作為工作及學習參考。</p>\n  <h2 style=\"font-size:18px;color:#222;\">本週新聞精選（${weekLabel}）</h2>\n  ${blocksHtml}\n  <p style=\"font-size:12px;color:#999;margin-top:16px;\">本公告由 AI News Agent 自動彙整並經人工審核發出，僅提供 NSDD 內部人員參閱。</p>\n</div>`;\n\nreturn [{ json: { html, count: items.length, weekLabel } }];\n"
       },
       "id": "5e4c7fbd-7d7d-4745-81db-c2b27a646ab7",
       "name": "組裝HTML公告內容",
@@ -291,9 +279,7 @@
           "cachedResultName": "待審核",
           "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
         },
-        "clear": "specificRows",
-        "startIndex": 2,
-        "rowsToDelete": 100000
+        "clear": "wholeSheet"
       },
       "id": "6de2bde0-81a2-454b-a951-c1aefb77ea78",
       "name": "清空待審核表單",
@@ -525,7 +511,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return $('讀取已核可項目').all();"
+        "jsCode": "return $('篩選已核可未寄送').all();"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -546,6 +532,142 @@
       "typeVersion": 2,
       "position": [
         384,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ksGR8JaDv0hYdeGCk0tG9MlMzC2XkgP7AKXaP6KqZyY",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "待審核",
+          "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "標題": "標題",
+            "摘要": "摘要",
+            "分類": "分類",
+            "分數": "分數",
+            "評分理由": "評分理由",
+            "來源連結": "來源連結",
+            "發布日期": "發布日期",
+            "核可": "核可",
+            "已寄送": "已寄送",
+            "ChromeOS相關": "ChromeOS相關"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "標題",
+              "displayName": "標題",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "摘要",
+              "displayName": "摘要",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "分類",
+              "displayName": "分類",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "分數",
+              "displayName": "分數",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "評分理由",
+              "displayName": "評分理由",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "來源連結",
+              "displayName": "來源連結",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "發布日期",
+              "displayName": "發布日期",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "核可",
+              "displayName": "核可",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "已寄送",
+              "displayName": "已寄送",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ChromeOS相關",
+              "displayName": "ChromeOS相關",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "71576d2f-52f8-4246-82f7-64d773feabab",
+      "name": "寫回待審核表頭",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1600,
         336
       ]
     }
@@ -629,7 +751,7 @@
       "main": [
         [
           {
-            "node": "讀取已處理全部",
+            "node": "寫回待審核表頭",
             "type": "main",
             "index": 0
           }
@@ -696,6 +818,17 @@
         [
           {
             "node": "本週是否有核可項目",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "寫回待審核表頭": {
+      "main": [
+        [
+          {
+            "node": "讀取已處理全部",
             "type": "main",
             "index": 0
           }
