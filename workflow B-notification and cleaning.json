@@ -1,5 +1,5 @@
 {
-  "name": "[AI News Agent] B-notification and cleaning",
+  "name": "[AI News Agent] B-審核後寄送",
   "nodes": [
     {
       "parameters": {
@@ -16,7 +16,7 @@
         }
       },
       "id": "24fd3aeb-3e0b-490e-ae40-93e974c11e1f",
-      "name": "Scheduled Trigger",
+      "name": "每週一排程觸發",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -28,32 +28,32 @@
       "parameters": {
         "documentId": {
           "__rl": true,
-          "value": "{Sheet ID}",
+          "value": "1ksGR8JaDv0hYdeGCk0tG9MlMzC2XkgP7AKXaP6KqZyY",
           "mode": "id"
         },
         "sheetName": {
           "__rl": true,
           "value": "gid=0",
           "mode": "list",
-          "cachedResultName": "Pending",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid=0"
+          "cachedResultName": "待審核",
+          "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
         },
-        "filtersUI": {
-          "values": [
-            {
-              "lookupColumn": "Approved",
-              "lookupValue": "true"
-            },
-            {
-              "lookupColumn": "Sent",
-              "lookupValue": "false"
-            }
-          ]
-        },
+					  
+					 
+			 
+									   
+								   
+			  
+			 
+										  
+									
+			 
+		   
+		  
         "options": {}
       },
       "id": "57e1b8cb-ae7e-43a4-af22-3427ae2279cd",
-      "name": "Read Approved Projects",
+      "name": "讀取已核可項目",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
@@ -62,7 +62,7 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "id": "{GOOGLE_SHEETS_OAUTH2API}",
           "name": "Google Sheets account"
         }
       }
@@ -92,7 +92,7 @@
         "options": {}
       },
       "id": "8dfd02f6-8ea2-418e-a889-d5bffe72225c",
-      "name": "Determine Sent Items",
+      "name": "本週是否有核可項目",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
@@ -102,10 +102,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// 將所有Approved項目彙整成 HTML 公告內容\n// 依Score高到低排序、加上星等、Category色塊、並把連結文字改成更明確的「閱讀原文 →」\nconst items = $input.all();\n\nconst sorted = [...items].sort((a, b) => (Number(b.json['Score']) || 0) - (Number(a.json['Score']) || 0));\n\n// Category色塊調色盤，依Category文字雜湊決定顏色，確保同Category顏色一致，不用手動對應每個Category名稱\nconst palette = [\n  { bg: '#E8F0FE', text: '#1967D2' },\n  { bg: '#FCE8E6', text: '#C5221F' },\n  { bg: '#E6F4EA', text: '#188038' },\n  { bg: '#FEF7E0', text: '#B06000' },\n  { bg: '#F3E8FD', text: '#8430CE' },\n  { bg: '#E0F7FA', text: '#00838F' },\n  { bg: '#FCE4EC', text: '#AD1457' }\n];\n\nfunction categoryColor(category) {\n  const str = category || '一般';\n  let hash = 0;\n  for (let i = 0; i < str.length; i++) {\n    hash = (hash * 31 + str.charCodeAt(i)) % palette.length;\n  }\n  return palette[Math.abs(hash) % palette.length];\n}\n\n// Score轉星等：10分=5顆星，每少1分少1顆星，未滿7分一律固定1顆星\nfunction scoreToStars(score) {\n  const s = Number(score) || 0;\n  const stars = Math.max(1, Math.min(5, s - 5));\n  return '★'.repeat(stars) + '☆'.repeat(5 - stars);\n}\n\nconst rows = sorted.map(i => {\n  const j = i.json;\n  const color = categoryColor(j['Category']);\n  const stars = scoreToStars(j['Score']);\n  return `\n    <tr>\n      <td style=\"padding:12px 8px;border-bottom:1px solid #e5e5e5;vertical-align:top;\">\n        <div style=\"font-weight:600;font-size:15px;margin-bottom:4px;\">\n          <a href=\"${j['Link']}\" style=\"color:#185FA5;text-decoration:none;\" target=\"_blank\">${j['Title']}</a>\n        </div>\n        <div style=\"font-size:13px;color:#555;line-height:1.6;margin-bottom:6px;\">${j['Summary']}</div>\n        <div style=\"font-size:12px;\">\n          <span style=\"background:${color.bg};color:${color.text};padding:2px 8px;border-radius:10px;font-weight:600;display:inline-block;margin-right:8px;\">${j['Category'] || '一般'}</span>\n          <span style=\"color:#F5A623;letter-spacing:1px;margin-right:8px;\">${stars}</span>\n          <a href=\"${j['Link']}\" style=\"color:#185FA5;text-decoration:none;font-weight:500;\" target=\"_blank\">閱讀原文 →</a>\n        </div>\n      </td>\n    </tr>`;\n}).join('');\n\n// 計算本次公告涵蓋的新聞區間：寄信當天往前推7天~寄信當天本身\nfunction fmt(d) {\n  const y = d.getFullYear();\n  const m = String(d.getMonth() + 1).padStart(2, '0');\n  const day = String(d.getDate()).padStart(2, '0');\n  return `${y}/${m}/${day}`;\n}\n\nconst now = new Date();\nconst rangeStart = new Date(now);\nrangeStart.setDate(now.getDate() - 7);\nconst rangeEnd = new Date(now);\nrangeEnd.setDate(now.getDate() - 0);\n\nconst weekLabel = `${fmt(rangeStart)}~${fmt(rangeEnd)}`;\n\nconst html = `\n<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;\">\n  <p style=\"font-size:13px;color:#666;\">您好，\n以下整理過去一週內值得關注的重點新聞，內容經由 Gemini 篩選並聚焦於與 AI 相關之軟硬體開發、生產力工具、PC 生態等重要資訊，希望協助大家快速掌握最新技術趨勢與產業動態，作為工作及學習參考。</p>\n  <h2 style=\"font-size:18px;color:#222;\">本週新聞精選（${weekLabel}）</h2>\n  <table style=\"width:100%;border-collapse:collapse;\">${rows}</table>\n  <p style=\"font-size:12px;color:#999;margin-top:16px;\">本公告由 AI News Agent 自動彙整並經人工審核發出，僅提供內部人員參閱。</p>\n</div>`;\n\nreturn [{ json: { html, count: sorted.length, weekLabel } }];"
+        "jsCode": "// 將所有核可項目依 ChromeOS 專區 + 四大分類分組彙整成 HTML 公告內容\n// ChromeOS 相關新聞獨立成專區，不進入四大分類的排序池，避免重複出現、也避免佔用其他分類的名額\nconst items = $input.all();\n\nfunction toBool(v) {\n  if (typeof v === 'boolean') return v;\n  if (typeof v === 'string') return v.trim().toLowerCase() === 'true';\n  return false;\n}\n\nfunction scoreToStars(score) {\n  const s = Number(score) || 0;\n  const stars = Math.max(1, Math.min(5, s - 5));\n  return '★'.repeat(stars) + '☆'.repeat(5 - stars);\n}\n\n// 分數為主要排序依據，同分時用發布日期，新的優先\nfunction sortItems(list) {\n  return [...list].sort((a, b) => {\n    const scoreDiff = (Number(b.json['分數']) || 0) - (Number(a.json['分數']) || 0);\n    if (scoreDiff !== 0) return scoreDiff;\n    const dateA = new Date(a.json['發布日期'] || 0).getTime() || 0;\n    const dateB = new Date(b.json['發布日期'] || 0).getTime() || 0;\n    return dateB - dateA;\n  });\n}\n\nfunction renderItem(j, accent, isTop) {\n  const titleSize = isTop ? '14px' : '11px';\n  const summaryHtml = isTop\n    ? `<div style=\"font-size:13px;color:#555;line-height:1.6;margin-top:4px;\">${j['摘要'] || ''}</div>`\n    : '';\n  return `\n    <div style=\"border-bottom:1px solid rgba(0,0,0,0.08);padding:8px 0;\">\n      <a href=\"${j['來源連結']}\" style=\"font-size:${titleSize};font-weight:600;color:${accent};text-decoration:none;\" target=\"_blank\">${j['標題']}</a>\n      <div style=\"color:#F5A623;font-size:12px;letter-spacing:1px;margin-top:4px;\">${scoreToStars(j['分數'])}</div>\n      ${summaryHtml}\n    </div>`;\n}\n\nfunction renderBlock(label, accent, bg, list) {\n  if (list.length === 0) return '';\n  const sorted = sortItems(list);\n  const top = sorted.slice(0, 3);\n  const extra = sorted.slice(3);\n  const topLabel = top.length === 3 ? 'Top 3' : (top.length === 2 ? 'Top 2' : 'Top 1');\n\n  const topHtml = top.map(i => renderItem(i.json, accent, true)).join('');\n  const extraHtml = extra.length > 0\n    ? `<p style=\"font-size:12px;color:#888;margin:10px 0 4px;\">其他高分項目</p>` +\n      extra.map(i => renderItem(i.json, accent, false)).join('')\n    : '';\n\n  return `\n    <div style=\"background:${bg};border-radius:12px;padding:14px 16px;margin-bottom:16px;\">\n      <p style=\"font-size:18px;font-weight:600;color:${accent};margin:0 0 8px;\">${label} <span style=\"font-size:12px;font-weight:400;\">${topLabel}</span></p>\n      ${topHtml}\n      ${extraHtml}\n    </div>`;\n}\n\nconst chromeOsItems = items.filter(i => toBool(i.json['ChromeOS相關']));\nconst nonChromeOsItems = items.filter(i => !toBool(i.json['ChromeOS相關']));\n\nconst categories = [\n  { key: '應用類', accent: '#185FA5', bg: '#E6F1FB' },\n  { key: '知識類', accent: '#A32D2D', bg: '#FCEBEB' },\n  { key: '產業類', accent: '#3B6D11', bg: '#EAF3DE' },\n  { key: '其他類', accent: '#5F5E5A', bg: '#F1EFE8' }\n];\n\nlet blocksHtml = renderBlock('ChromeOS 專區', '#854F0B', '#FAEEDA', chromeOsItems);\nfor (const cat of categories) {\n  const list = nonChromeOsItems.filter(i => i.json['分類'] === cat.key);\n  blocksHtml += renderBlock(cat.key, cat.accent, cat.bg, list);\n}\n\nfunction fmt(d) {\n  const y = d.getFullYear();\n  const m = String(d.getMonth() + 1).padStart(2, '0');\n  const day = String(d.getDate()).padStart(2, '0');\n  return `${y}/${m}/${day}`;\n}\n\nconst now = new Date();\nconst rangeStart = new Date(now);\nrangeStart.setDate(now.getDate() - 7);\nconst rangeEnd = new Date(now);\nrangeEnd.setDate(now.getDate() - 0);\n\nconst weekLabel = `${fmt(rangeStart)}~${fmt(rangeEnd)}`;\n\nconst html = `\n<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;\">\n  <p style=\"font-size:13px;color:#666;\">您好，\n以下整理過去一週內值得關注的重點新聞，內容經由 Gemini 篩選並聚焦於與 AI 相關之軟硬體開發、生產力工具、PC 生態等重要資訊，希望協助大家快速掌握最新技術趨勢與產業動態，作為工作及學習參考。</p>\n  <h2 style=\"font-size:18px;color:#222;\">本週新聞精選（${weekLabel}）</h2>\n  ${blocksHtml}\n  <p style=\"font-size:12px;color:#999;margin-top:16px;\">本公告由 AI News Agent 自動彙整並經人工審核發出，僅提供 NSDD 內部人員參閱。</p>\n</div>`;\n\nreturn [{ json: { html, count: items.length, weekLabel } }];\n"
       },
       "id": "5e4c7fbd-7d7d-4745-81db-c2b27a646ab7",
-      "name": "Assemble HTML",
+      "name": "組裝HTML公告內容",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -115,68 +115,56 @@
     },
     {
       "parameters": {
-        "fromEmail": "{SMTP_USER}",
-        "toEmail": "{Recipient}",
+        "fromEmail": "{SMTP_SENDER}",
+        "toEmail": "{AD_RECIPIENTS}",
         "subject": "={{ '【AI Sharing】本週 AI 重點新聞彙整 - ' + $json.weekLabel }}",
         "html": "={{ $json.html }}",
         "options": {}
       },
       "id": "bc5fcf69-be23-4216-8379-802765a680da",
-      "name": "SMTP",
+      "name": "SMTP寄送公告",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
         928,
         208
       ],
+      "webhookId": "fc30b4b1-434f-41c8-8b09-308cf662b576",
       "credentials": {
         "smtp": {
-          "id": "REPLACE_WITH_YOUR_SMTP_CREDENTIAL_ID",
+          "id": "fJ1ikTxVxOlcr5gH",
           "name": "SMTP account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "return $('Read Approved Projects').all();"
-      },
-      "id": "75b9aafe-cf0c-425a-b1b2-107e163b9487",
-      "name": "Mark Items",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1136,
-        208
-      ]
-    },
-    {
-      "parameters": {
         "operation": "update",
         "documentId": {
           "__rl": true,
-          "value": "{Sheet ID}",
+          "value": "1ksGR8JaDv0hYdeGCk0tG9MlMzC2XkgP7AKXaP6KqZyY",
           "mode": "id"
         },
         "sheetName": {
           "__rl": true,
           "value": "gid=0",
           "mode": "list",
-          "cachedResultName": "Pending",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid=0"
+          "cachedResultName": "待審核",
+          "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
         },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Sent": "true",
-            "Link": "={{ $json['Link'] }}"
+            "已寄送": "true",
+            "來源連結": "={{ $json['來源連結'] }}"
           },
           "matchingColumns": [
-            "Link"
+            "來源連結"
           ],
           "schema": [
             {
-              "id": "Title",
-              "displayName": "Title",
+              "id": "標題",
+              "displayName": "標題",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -184,8 +172,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Summary",
-              "displayName": "Summary",
+              "id": "摘要",
+              "displayName": "摘要",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -193,8 +181,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Category",
-              "displayName": "Category",
+              "id": "分類",
+              "displayName": "分類",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -202,8 +190,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Score",
-              "displayName": "Score",
+              "id": "分數",
+              "displayName": "分數",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -211,8 +199,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Reason",
-              "displayName": "Reason",
+              "id": "評分理由",
+              "displayName": "評分理由",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -220,8 +208,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Link",
-              "displayName": "Link",
+              "id": "來源連結",
+              "displayName": "來源連結",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -230,8 +218,8 @@
               "removed": false
             },
             {
-              "id": "Publication Date",
-              "displayName": "Publication Date",
+              "id": "發布日期",
+              "displayName": "發布日期",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -239,8 +227,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Approved",
-              "displayName": "Approved",
+              "id": "核可",
+              "displayName": "核可",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -248,8 +236,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Sent",
-              "displayName": "Sent",
+              "id": "已寄送",
+              "displayName": "已寄送",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -274,7 +262,7 @@
         "options": {}
       },
       "id": "9c6ded7a-4c0a-4df6-a1b6-be811bc2701f",
-      "name": "Mark Sent",
+      "name": "標記為已寄送",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
@@ -283,7 +271,7 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "id": "{GOOGLE_SHEETS_OAUTH2API}",
           "name": "Google Sheets account"
         }
       }
@@ -293,22 +281,22 @@
         "operation": "clear",
         "documentId": {
           "__rl": true,
-          "value": "{Sheet ID}",
+          "value": "1ksGR8JaDv0hYdeGCk0tG9MlMzC2XkgP7AKXaP6KqZyY",
           "mode": "id"
         },
         "sheetName": {
           "__rl": true,
           "value": "gid=0",
           "mode": "list",
-          "cachedResultName": "Pending",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid=0"
+          "cachedResultName": "待審核",
+          "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
         },
         "clear": "specificRows",
         "startIndex": 2,
         "rowsToDelete": 100000
       },
       "id": "6de2bde0-81a2-454b-a951-c1aefb77ea78",
-      "name": "Clear Pending",
+      "name": "清空待審核表單",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
@@ -317,7 +305,7 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "id": "{GOOGLE_SHEETS_OAUTH2API}",
           "name": "Google Sheets account"
         }
       }
@@ -326,20 +314,20 @@
       "parameters": {
         "documentId": {
           "__rl": true,
-          "value": "{Sheet ID}",
+          "value": "1ksGR8JaDv0hYdeGCk0tG9MlMzC2XkgP7AKXaP6KqZyY",
           "mode": "id"
         },
         "sheetName": {
           "__rl": true,
-          "value": "{Processed Sheet GID}",
+          "value": 1198703828,
           "mode": "list",
-          "cachedResultName": "Processed",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid={Processed Sheet GID}"
+          "cachedResultName": "已處理",
+          "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
         },
         "options": {}
       },
       "id": "aaa923ee-3d35-4b7b-be64-293926701772",
-      "name": "Read Processed",
+      "name": "讀取已處理全部",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
@@ -348,17 +336,17 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "id": "{GOOGLE_SHEETS_OAUTH2API}",
           "name": "Google Sheets account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// 只保留最近14天內處理過的紀錄，比新聞蒐集的7天範圍多留一週緩衝\n// 同時依「Link」去重，避免舊資料留下的重複項目在每次清理時被一直複製下去\nconst cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;\n\nconst withDate = items.map(item => {\n  const dateStr = item.json['Processing Date'] || '';\n  const t = dateStr ? new Date(dateStr).getTime() : NaN;\n  return { item, t };\n});\n\nconst withinRange = withDate.filter(({ t }) => isNaN(t) || t >= cutoff);\n\n// 依Link去重，同一個連結若出現多次，保留Processing Date最新的那一筆\nconst latestByLink = new Map();\nfor (const { item, t } of withinRange) {\n  const link = (item.json['Link'] || '').trim();\n  if (!link) {\n    // 沒有連結的資料無法去重比對，直接保留，用一個獨立key避免互相覆蓋\n    latestByLink.set(Symbol(), item);\n    continue;\n  }\n  const existing = latestByLink.get(link);\n  if (!existing) {\n    latestByLink.set(link, item);\n  } else {\n    const existingTime = new Date(existing.json['Processing Date'] || 0).getTime();\n    if (isNaN(existingTime) || t > existingTime) {\n      latestByLink.set(link, item);\n    }\n  }\n}\n\nreturn Array.from(latestByLink.values());"
+        "jsCode": "// 只保留最近14天內處理過的紀錄，比新聞蒐集的7天範圍多留一週緩衝\n// 同時依「來源連結」去重，避免舊資料留下的重複項目在每次清理時被一直複製下去\nconst cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;\n\nconst withDate = items.map(item => {\n  const dateStr = item.json['處理時間'] || '';\n  const t = dateStr ? new Date(dateStr).getTime() : NaN;\n  return { item, t };\n});\n\nconst withinRange = withDate.filter(({ t }) => isNaN(t) || t >= cutoff);\n\n// 依來源連結去重，同一個連結若出現多次，保留處理時間最新的那一筆\nconst latestByLink = new Map();\nfor (const { item, t } of withinRange) {\n  const link = (item.json['來源連結'] || '').trim();\n  if (!link) {\n    // 沒有連結的資料無法去重比對，直接保留，用一個獨立key避免互相覆蓋\n    latestByLink.set(Symbol(), item);\n    continue;\n  }\n  const existing = latestByLink.get(link);\n  if (!existing) {\n    latestByLink.set(link, item);\n  } else {\n    const existingTime = new Date(existing.json['處理時間'] || 0).getTime();\n    if (isNaN(existingTime) || t > existingTime) {\n      latestByLink.set(link, item);\n    }\n  }\n}\n\nreturn Array.from(latestByLink.values());"
       },
       "id": "bef01bcc-3b35-4c9d-acce-06eef3a8637d",
-      "name": "Filtering",
+      "name": "篩選近14天",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -371,22 +359,22 @@
         "operation": "clear",
         "documentId": {
           "__rl": true,
-          "value": "{Sheet ID}",
+          "value": "1ksGR8JaDv0hYdeGCk0tG9MlMzC2XkgP7AKXaP6KqZyY",
           "mode": "id"
         },
         "sheetName": {
           "__rl": true,
-          "value": "{Processed Sheet GID}",
+          "value": 1198703828,
           "mode": "list",
-          "cachedResultName": "Processed",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid={Processed Sheet GID}"
+          "cachedResultName": "已處理",
+          "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
         },
         "clear": "specificRows",
         "startIndex": 2,
         "rowsToDelete": 100000
       },
       "id": "2511ef8f-9770-4c8c-8651-be69dadbd86c",
-      "name": "Clear Processed",
+      "name": "清空已處理表單",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
@@ -395,17 +383,17 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "id": "{GOOGLE_SHEETS_OAUTH2API}",
           "name": "Google Sheets account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// 清空動作本身的輸出不是我們要的資料，改回頭取用篩選後保留下來的項目\nreturn $('Filtering').all();"
+        "jsCode": "// 清空動作本身的輸出不是我們要的資料，改回頭取用篩選後保留下來的項目\nreturn $('篩選近14天').all();"
       },
       "id": "4ed9dbb0-4cc8-4c81-a475-5c362e4a214a",
-      "name": "Backup isHistory",
+      "name": "取回保留資料",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -418,33 +406,33 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "{Sheet ID}",
+          "value": "1ksGR8JaDv0hYdeGCk0tG9MlMzC2XkgP7AKXaP6KqZyY",
           "mode": "id"
         },
         "sheetName": {
           "__rl": true,
-          "value": "{Processed Sheet GID}",
+          "value": 1198703828,
           "mode": "list",
-          "cachedResultName": "Processed",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/{Sheet ID}/edit#gid={Processed Sheet GID}"
+          "cachedResultName": "已處理",
+          "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
         },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Title": "={{ $json['Title'] }}",
-            "Summary": "={{ $json['Summary'] }}",
-            "Category": "={{ $json['Category'] }}",
-            "Score": "={{ $json['Score'] }}",
-            "Reason": "={{ $json['Reason'] }}",
-            "Link": "={{ $json['Link'] }}",
-            "Publication Date": "={{ $json['Publication Date'] }}",
-            "Processing Date": "={{ $json['Processing Date'] }}"
+            "標題": "={{ $json['標題'] }}",
+            "摘要": "={{ $json['摘要'] }}",
+            "分類": "={{ $json['分類'] }}",
+            "分數": "={{ $json['分數'] }}",
+            "評分理由": "={{ $json['評分理由'] }}",
+            "來源連結": "={{ $json['來源連結'] }}",
+            "發布日期": "={{ $json['發布日期'] }}",
+            "處理時間": "={{ $json['處理時間'] }}"
           },
           "matchingColumns": [],
           "schema": [
             {
-              "id": "Title",
-              "displayName": "Title",
+              "id": "標題",
+              "displayName": "標題",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -452,8 +440,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Summary",
-              "displayName": "Summary",
+              "id": "摘要",
+              "displayName": "摘要",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -461,8 +449,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Category",
-              "displayName": "Category",
+              "id": "分類",
+              "displayName": "分類",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -470,8 +458,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Score",
-              "displayName": "Score",
+              "id": "分數",
+              "displayName": "分數",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -479,8 +467,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Reason",
-              "displayName": "Reason",
+              "id": "評分理由",
+              "displayName": "評分理由",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -488,8 +476,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Link",
-              "displayName": "Link",
+              "id": "來源連結",
+              "displayName": "來源連結",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -497,8 +485,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Publication Date",
-              "displayName": "Publication Date",
+              "id": "發布日期",
+              "displayName": "發布日期",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -506,8 +494,8 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "Processing Date",
-              "displayName": "Processing Date",
+              "id": "處理時間",
+              "displayName": "處理時間",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -521,7 +509,7 @@
         "options": {}
       },
       "id": "7b69c1c2-8f0b-4c9e-a20b-a3e43582d42c",
-      "name": "Write in Processed",
+      "name": "寫回已處理保留資料",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
@@ -530,147 +518,184 @@
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "id": "{GOOGLE_SHEETS_OAUTH2API}",
           "name": "Google Sheets account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('讀取已核可項目').all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        208
+      ],
+      "id": "75b9aafe-cf0c-425a-b1b2-107e163b9487",
+      "name": "取回待標記項目"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Google Sheets 的核取方塊欄位，實際讀出來的型態不保證一致\n// （可能是 JS boolean、字串 \"true\"/\"TRUE\"/\"True\"，或空字串/undefined）\nfunction toBool(v) {\n  if (typeof v === 'boolean') return v;\n  if (typeof v === 'string') return v.trim().toLowerCase() === 'true';\n  return false;\n}\n\nreturn items.filter(item => {\n  const approved = toBool(item.json['核可']);\n  const alreadySent = toBool(item.json['已寄送']);\n  return approved && !alreadySent;\n});\n"
+      },
+      "id": "782f7007-a619-49e6-b648-2506dcf0ecb1",
+      "name": "篩選已核可未寄送",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        336
+      ]
     }
   ],
   "pinData": {},
   "connections": {
-    "Scheduled Trigger": {
+    "每週一排程觸發": {
       "main": [
         [
           {
-            "node": "Read Approved Projects",
+            "node": "讀取已核可項目",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Read Approved Projects": {
+    "讀取已核可項目": {
       "main": [
         [
           {
-            "node": "Determine Sent Items",
+            "node": "篩選已核可未寄送",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Determine Sent Items": {
+    "本週是否有核可項目": {
       "main": [
         [
           {
-            "node": "Assemble HTML",
+            "node": "組裝HTML公告內容",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Clear Pending",
+            "node": "清空待審核表單",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Assemble HTML": {
+    "組裝HTML公告內容": {
       "main": [
         [
           {
-            "node": "SMTP",
+            "node": "SMTP寄送公告",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "SMTP": {
+    "SMTP寄送公告": {
       "main": [
         [
           {
-            "node": "Mark Items",
+            "node": "取回待標記項目",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Mark Items": {
+    "標記為已寄送": {
       "main": [
         [
           {
-            "node": "Mark Sent",
+            "node": "清空待審核表單",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Mark Sent": {
+    "清空待審核表單": {
       "main": [
         [
           {
-            "node": "Clear Pending",
+            "node": "讀取已處理全部",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Clear Pending": {
+    "讀取已處理全部": {
       "main": [
         [
           {
-            "node": "Read Processed",
+            "node": "篩選近14天",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Read Processed": {
+    "篩選近14天": {
       "main": [
         [
           {
-            "node": "Filtering",
+            "node": "清空已處理表單",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Filtering": {
+    "清空已處理表單": {
       "main": [
         [
           {
-            "node": "Clear Processed",
+            "node": "取回保留資料",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Clear Processed": {
+    "取回保留資料": {
       "main": [
         [
           {
-            "node": "Backup isHistory",
+            "node": "寫回已處理保留資料",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Backup isHistory": {
+    "取回待標記項目": {
       "main": [
         [
           {
-            "node": "Write in Processed",
+            "node": "標記為已寄送",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "篩選已核可未寄送": {
+      "main": [
+        [
+          {
+            "node": "本週是否有核可項目",
             "type": "main",
             "index": 0
           }
@@ -678,12 +703,31 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
     "availableInMCP": false
   },
+  "versionId": "49601df8-8c3a-4940-8643-318de01f89d0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5809fbc9f91415fe41c10c0a1ba5a75695c7194d8a03549dd77ae46ffddc0d80"
+  },
   "nodeGroups": [],
-  "tags": []
+  "id": "yhE1c85wTcynvcsX",
+  "tags": [
+    {
+      "updatedAt": "2026-07-14T03:03:04.648Z",
+      "createdAt": "2026-07-14T03:02:51.746Z",
+      "id": "VlMNXkVr5hwmaNXB",
+      "name": "Live"
+    },
+    {
+      "updatedAt": "2026-07-13T02:37:01.052Z",
+      "createdAt": "2026-07-13T02:37:01.052Z",
+      "id": "Vp3JuMcBZKQJ8mnf",
+      "name": "Test"
+    }
+  ]
 }
