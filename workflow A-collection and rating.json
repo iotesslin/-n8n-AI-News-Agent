@@ -11,7 +11,7 @@
           ]
         }
       },
-      "id": "e39ad675-b764-4e9b-a69f-45e17c68d73c",
+      "id": "",
       "name": "每日排程觸發",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -25,7 +25,7 @@
         "url": "https://openai.com/blog/rss.xml",
         "options": {}
       },
-      "id": "56da9cf2-5c53-497e-b1c4-f13153a735b6",
+      "id": "",
       "name": "RSS - OpenAI Blog",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1.1,
@@ -53,7 +53,7 @@
         "url": "https://news.google.com/rss/search?q=AI+when:7d&hl=zh-TW&gl=TW&ceid=TW:zh-Hant",
         "options": {}
       },
-      "id": "e050e7ef-183b-4c17-80e6-842bceaf7d72",
+      "id": "",
       "name": "RSS - Google News AI",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1.1,
@@ -66,7 +66,7 @@
       "parameters": {
         "numberInputs": 12
       },
-      "id": "2c377499-092d-4cca-9f58-c7d329ed525d",
+      "id": "",
       "name": "合併來源",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
@@ -79,12 +79,12 @@
       "parameters": {
         "documentId": {
           "__rl": true,
-          "value": "1ksGR8JaDv0hYdeGCk0tG9MlMzC2XkgP7AKXaP6KqZyY",
+          "value": "{YOUR_GOOGLE_SHEET_ID}",
           "mode": "id"
         },
         "sheetName": {
           "__rl": true,
-          "value": 1198703828,
+          "value": ,
           "mode": "list",
           "cachedResultName": "已處理",
           "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
@@ -98,7 +98,13 @@
       "position": [
         -2256,
         -560
-      ]
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RVO4J7tQ073m3rR7",
+          "name": "Google Sheets account"
+        }
+      }
     },
     {
       "parameters": {
@@ -115,7 +121,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "2a740a0f-2140-4668-8bcc-c0cdb6304222",
+      "id": "",
       "name": "標記歷史紀錄",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -128,7 +134,7 @@
       "parameters": {
         "jsCode": "// 去重：items 裡同時包含「歷史紀錄」(isHistory=true) 與「本次抓到的新聞」\n// 因為兩者都先匯流進同一個合併節點才到這裡，所以保證都已經到齊，不用跨節點引用\n// 歷史紀錄來自「已處理」表單，欄位名稱是「來源連結」；本次新聞來自RSS，欄位名稱是 link/guid\nconst seenLinks = new Set();\nfor (const item of items) {\n  if (item.json.isHistory) {\n    const l = (item.json['來源連結'] || '').trim();\n    if (l) seenLinks.add(l);\n  }\n}\n\nconst uniqueByLink = new Map();\nfor (const item of items) {\n  if (item.json.isHistory) continue;\n  const link = (item.json.link || item.json.guid || '').trim();\n  if (!link) continue;\n  if (seenLinks.has(link)) continue;\n  if (!uniqueByLink.has(link)) {\n    uniqueByLink.set(link, item);\n  }\n}\nreturn Array.from(uniqueByLink.values());"
       },
-      "id": "f4d332ae-f823-4d96-a7bb-76e2eb928890",
+      "id": "",
       "name": "去重過濾",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -154,7 +160,7 @@
       "parameters": {
         "maxItems": 20
       },
-      "id": "5d93fb10-a148-4ca6-856e-9a3534f38880",
+      "id": "",
       "name": "數量限制",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
@@ -180,13 +186,11 @@
       "parameters": {
         "method": "POST",
         "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "x-goog-api-key",
-              "value": "{GOOGLE_GEMINI_APIKEY}"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -198,25 +202,31 @@
         "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: $json.prompt } ] } ] }) }}",
         "options": {}
       },
-      "id": "ee0ab887-d576-4da3-9c31-dc801ffc633d",
+      "id": "",
       "name": "Gemini 評分與摘要",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -608,
+        -624,
         192
-      ]
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
     },
     {
       "parameters": {
         "jsCode": "// 解析 Gemini 一次回傳的 JSON 陣列，並對應回原始新聞\nconst raw = $json.candidates?.[0]?.content?.parts?.[0]?.text || '';\nconst cleaned = raw.replace(/```json|```/g, '').trim();\nlet parsedArray;\ntry {\n  parsedArray = JSON.parse(cleaned);\n} catch (e) {\n  return [];\n}\n\nconst originalItems = $('組合批次請求').item.json.items;\n\nconst results = [];\nfor (const p of parsedArray) {\n  const original = originalItems[p.index];\n  if (!original) continue;\n  results.push({\n    json: {\n      title: p.title || original.title,\n      summary: p.summary || '',\n      category: p.category || '',\n      score: Number(p.score) || 0,\n      reason: p.reason || '',\n      link: original.link,\n      pubDate: original.pubDate || '',\n      isChromeOS: original.isChromeOS || false\n    }\n  });\n}\nreturn results;"
       },
-      "id": "dc0bceaf-f33b-4276-a0f8-feba08df0cd2",
+      "id": "",
       "name": "解析評分結果",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -416,
+        -432,
         192
       ]
     },
@@ -237,19 +247,19 @@
                 "type": "number",
                 "operation": "gte"
               },
-              "id": "a12137c1-74bf-4fa8-b251-7b2f4ac07017"
+              "id": ""
             }
           ],
           "combinator": "and"
         },
         "options": {}
       },
-      "id": "e975021e-52c8-491a-88e6-371dad085c3f",
+      "id": "",
       "name": "分數門檻判斷 (>=7)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -224,
+        -240,
         192
       ]
     },
@@ -258,7 +268,7 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "1ksGR8JaDv0hYdeGCk0tG9MlMzC2XkgP7AKXaP6KqZyY",
+          "value": "{YOUR_GOOGLE_SHEET_ID}",
           "mode": "id"
         },
         "sheetName": {
@@ -380,26 +390,32 @@
         },
         "options": {}
       },
-      "id": "92c18a6f-f1e4-4f60-862c-bf7dd4794cb3",
+      "id": "",
       "name": "寫入待審核表單",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        48,
+        32,
         16
-      ]
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
     },
     {
       "parameters": {
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "1ksGR8JaDv0hYdeGCk0tG9MlMzC2XkgP7AKXaP6KqZyY",
+          "value": "{YOUR_GOOGLE_SHEET_ID}",
           "mode": "id"
         },
         "sheetName": {
           "__rl": true,
-          "value": 1198703828,
+          "value": ,
           "mode": "list",
           "cachedResultName": "已處理",
           "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
@@ -511,9 +527,15 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        48,
+        32,
         192
-      ]
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
     },
     {
       "parameters": {
@@ -945,21 +967,22 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "dc1bd016-769f-4e8e-bf75-816fd31679de",
+  "versionId": "",
   "meta": {
-    "instanceId": "4d99f6011686083f8cd9ad6ae2958a799b938b00b65cd7b3825cbcad82758f1f"
+    "templateCredsSetupCompleted": true,
+    "instanceId": ""
   },
   "id": "5Z8hL2FK8j-S8SpAwQp5d",
   "tags": [
     {
       "name": "Live",
-      "id": "zJnb9hGNBAUaJgs6",
+      "id": "",
       "updatedAt": "2026-08-13T08:18:20.319Z",
       "createdAt": "2026-08-13T08:18:20.319Z"
     },
     {
       "name": "Test",
-      "id": "hi9nicgEO0I2IwWn",
+      "id": "",
       "updatedAt": "2026-08-13T08:18:20.323Z",
       "createdAt": "2026-08-13T08:18:20.323Z"
     }
