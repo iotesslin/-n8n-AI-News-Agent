@@ -15,7 +15,7 @@
           ]
         }
       },
-      "id": "24fd3aeb-3e0b-490e-ae40-93e974c11e1f",
+      "id": "",
       "name": "每週一排程觸發",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -38,9 +38,21 @@
           "cachedResultName": "待審核",
           "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
         },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "核可",
+              "lookupValue": "true"
+            },
+            {
+              "lookupColumn": "已寄送",
+              "lookupValue": "false"
+            }
+          ]
+        },
         "options": {}
       },
-      "id": "57e1b8cb-ae7e-43a4-af22-3427ae2279cd",
+      "id": "",
       "name": "讀取已核可項目",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -72,14 +84,14 @@
                 "type": "number",
                 "operation": "gt"
               },
-              "id": "9419f8f4-97d5-440b-877f-16cfd5d5737c"
+              "id": ""
             }
           ],
           "combinator": "and"
         },
         "options": {}
       },
-      "id": "8dfd02f6-8ea2-418e-a889-d5bffe72225c",
+      "id": "",
       "name": "本週是否有核可項目",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -92,7 +104,7 @@
       "parameters": {
         "jsCode": "// 將所有核可項目依 ChromeOS 專區 + 四大分類分組彙整成 HTML 公告內容\n// ChromeOS 相關新聞獨立成專區，不進入四大分類的排序池，避免重複出現、也避免佔用其他分類的名額\nconst items = $input.all();\n\nfunction toBool(v) {\n  if (typeof v === 'boolean') return v;\n  if (typeof v === 'string') return v.trim().toLowerCase() === 'true';\n  return false;\n}\n\nfunction scoreToStars(score) {\n  const s = Number(score) || 0;\n  const stars = Math.max(1, Math.min(5, s - 5));\n  return '★'.repeat(stars) + '☆'.repeat(5 - stars);\n}\n\n// 分數為主要排序依據，同分時用發布日期，新的優先\nfunction sortItems(list) {\n  return [...list].sort((a, b) => {\n    const scoreDiff = (Number(b.json['分數']) || 0) - (Number(a.json['分數']) || 0);\n    if (scoreDiff !== 0) return scoreDiff;\n    const dateA = new Date(a.json['發布日期'] || 0).getTime() || 0;\n    const dateB = new Date(b.json['發布日期'] || 0).getTime() || 0;\n    return dateB - dateA;\n  });\n}\n\nfunction renderItem(j, accent, isTop) {\n  const titleSize = isTop ? '14px' : '11px';\n  const summaryHtml = isTop\n    ? `<div style=\"font-size:13px;color:#555;line-height:1.6;margin-top:4px;\">${j['摘要'] || ''}</div>`\n    : '';\n  return `\n    <div style=\"border-bottom:1px solid rgba(0,0,0,0.08);padding:8px 0;\">\n      <a href=\"${j['來源連結']}\" style=\"font-size:${titleSize};font-weight:600;color:${accent};text-decoration:none;\" target=\"_blank\">${j['標題']}</a>\n      <div style=\"color:#F5A623;font-size:12px;letter-spacing:1px;margin-top:4px;\">${scoreToStars(j['分數'])}</div>\n      ${summaryHtml}\n    </div>`;\n}\n\nfunction renderBlock(label, accent, bg, list) {\n  if (list.length === 0) return '';\n  const sorted = sortItems(list);\n  const top = sorted.slice(0, 3);\n  const extra = sorted.slice(3);\n  const topLabel = top.length === 3 ? 'Top 3' : (top.length === 2 ? 'Top 2' : 'Top 1');\n\n  const topHtml = top.map(i => renderItem(i.json, accent, true)).join('');\n  const extraHtml = extra.length > 0\n    ? `<p style=\"font-size:12px;color:#888;margin:10px 0 4px;\">其他高分項目</p>` +\n      extra.map(i => renderItem(i.json, accent, false)).join('')\n    : '';\n\n  return `\n    <div style=\"margin-bottom:16px;\">\n      <p style=\"background:${bg};color:${accent};font-size:18px;font-weight:600;margin:0;padding:8px 16px;border-radius:8px;\">${label} <span style=\"font-size:12px;font-weight:400;\">${topLabel}</span></p>\n      <div style=\"padding:4px 16px 8px;\">\n        ${topHtml}\n        ${extraHtml}\n      </div>\n    </div>`;\n}\n\nconst chromeOsItems = items.filter(i => toBool(i.json['ChromeOS相關']));\nconst nonChromeOsItems = items.filter(i => !toBool(i.json['ChromeOS相關']));\n\nconst categories = [\n  { key: '應用類', accent: '#185FA5', bg: '#E6F1FB' },\n  { key: '知識類', accent: '#A32D2D', bg: '#FCEBEB' },\n  { key: '產業類', accent: '#3B6D11', bg: '#EAF3DE' },\n  { key: '其他類', accent: '#5F5E5A', bg: '#F1EFE8' }\n];\n\nlet blocksHtml = renderBlock('ChromeOS 專區', '#854F0B', '#FAEEDA', chromeOsItems);\nfor (const cat of categories) {\n  const list = nonChromeOsItems.filter(i => i.json['分類'] === cat.key);\n  blocksHtml += renderBlock(cat.key, cat.accent, cat.bg, list);\n}\n\nfunction fmt(d) {\n  const y = d.getFullYear();\n  const m = String(d.getMonth() + 1).padStart(2, '0');\n  const day = String(d.getDate()).padStart(2, '0');\n  return `${y}/${m}/${day}`;\n}\n\nconst now = new Date();\nconst rangeStart = new Date(now);\nrangeStart.setDate(now.getDate() - 7);\nconst rangeEnd = new Date(now);\nrangeEnd.setDate(now.getDate() - 0);\n\nconst weekLabel = `${fmt(rangeStart)}~${fmt(rangeEnd)}`;\n\nconst html = `\n<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;\">\n  <p style=\"font-size:13px;color:#666;\">您好，\n以下整理過去一週內值得關注的重點新聞，內容經由 Gemini 篩選並聚焦於與 AI 相關之軟硬體開發、生產力工具、PC 生態等重要資訊，希望協助大家快速掌握最新技術趨勢與產業動態，作為工作及學習參考。</p>\n  <h2 style=\"font-size:18px;color:#222;\">本週新聞精選（${weekLabel}）</h2>\n  ${blocksHtml}\n  <p style=\"font-size:12px;color:#999;margin-top:16px;\">本公告由 AI News Agent 自動彙整並經人工審核發出，僅提供 NSDD 內部人員參閱。</p>\n</div>`;\n\nreturn [{ json: { html, count: items.length, weekLabel } }];"
       },
-      "id": "5e4c7fbd-7d7d-4745-81db-c2b27a646ab7",
+      "id": "",
       "name": "組裝HTML公告內容",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -109,7 +121,7 @@
         "html": "={{ $json.html }}",
         "options": {}
       },
-      "id": "bc5fcf69-be23-4216-8379-802765a680da",
+      "id": "",
       "name": "SMTP寄送公告",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
@@ -117,10 +129,10 @@
         176,
         160
       ],
-      "webhookId": "fc30b4b1-434f-41c8-8b09-308cf662b576",
+      "webhookId": "",
       "credentials": {
         "smtp": {
-          "id": "fJ1ikTxVxOlcr5gH",
+          "id": "",
           "name": "SMTP account"
         }
       }
@@ -249,7 +261,7 @@
         },
         "options": {}
       },
-      "id": "9c6ded7a-4c0a-4df6-a1b6-be811bc2701f",
+      "id": "",
       "name": "標記為已寄送",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -283,7 +295,7 @@
         "startIndex": 2,
         "rowsToDelete": 100000
       },
-      "id": "6de2bde0-81a2-454b-a951-c1aefb77ea78",
+      "id": "",
       "name": "清空待審核表單",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -314,7 +326,7 @@
         },
         "options": {}
       },
-      "id": "aaa923ee-3d35-4b7b-be64-293926701772",
+      "id": "",
       "name": "讀取已處理全部",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -333,7 +345,7 @@
       "parameters": {
         "jsCode": "// 只保留最近14天內處理過的紀錄，比新聞蒐集的7天範圍多留一週緩衝\n// 同時依「來源連結」去重，避免舊資料留下的重複項目在每次清理時被一直複製下去\nconst cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;\n\nconst withDate = items.map(item => {\n  const dateStr = item.json['處理時間'] || '';\n  const t = dateStr ? new Date(dateStr).getTime() : NaN;\n  return { item, t };\n});\n\nconst withinRange = withDate.filter(({ t }) => isNaN(t) || t >= cutoff);\n\n// 依來源連結去重，同一個連結若出現多次，保留處理時間最新的那一筆\nconst latestByLink = new Map();\nfor (const { item, t } of withinRange) {\n  const link = (item.json['來源連結'] || '').trim();\n  if (!link) {\n    // 沒有連結的資料無法去重比對，直接保留，用一個獨立key避免互相覆蓋\n    latestByLink.set(Symbol(), item);\n    continue;\n  }\n  const existing = latestByLink.get(link);\n  if (!existing) {\n    latestByLink.set(link, item);\n  } else {\n    const existingTime = new Date(existing.json['處理時間'] || 0).getTime();\n    if (isNaN(existingTime) || t > existingTime) {\n      latestByLink.set(link, item);\n    }\n  }\n}\n\nreturn Array.from(latestByLink.values());"
       },
-      "id": "bef01bcc-3b35-4c9d-acce-06eef3a8637d",
+      "id": "",
       "name": "篩選近14天",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -361,7 +373,7 @@
         "startIndex": 2,
         "rowsToDelete": 100000
       },
-      "id": "2511ef8f-9770-4c8c-8651-be69dadbd86c",
+      "id": "",
       "name": "清空已處理表單",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -380,7 +392,7 @@
       "parameters": {
         "jsCode": "// 清空動作本身的輸出不是我們要的資料，改回頭取用篩選後保留下來的項目\nreturn $('篩選近14天').all();"
       },
-      "id": "4ed9dbb0-4cc8-4c81-a475-5c362e4a214a",
+      "id": "",
       "name": "取回保留資料",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -496,7 +508,7 @@
         },
         "options": {}
       },
-      "id": "7b69c1c2-8f0b-4c9e-a20b-a3e43582d42c",
+      "id": "",
       "name": "寫回已處理保留資料",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
@@ -521,14 +533,14 @@
         384,
         160
       ],
-      "id": "75b9aafe-cf0c-425a-b1b2-107e163b9487",
+      "id": "",
       "name": "取回待標記項目"
     },
     {
       "parameters": {
         "jsCode": "// Google Sheets 的核取方塊欄位，實際讀出來的型態不保證一致\n// （可能是 JS boolean、字串 \"true\"/\"TRUE\"/\"True\"，或空字串/undefined）\nfunction toBool(v) {\n  if (typeof v === 'boolean') return v;\n  if (typeof v === 'string') return v.trim().toLowerCase() === 'true';\n  return false;\n}\n\nreturn items.filter(item => {\n  const approved = toBool(item.json['核可']);\n  const alreadySent = toBool(item.json['已寄送']);\n  return approved && !alreadySent;\n});\n"
       },
-      "id": "782f7007-a619-49e6-b648-2506dcf0ecb1",
+      "id": "",
       "name": "篩選已核可未寄送",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -697,24 +709,24 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "49601df8-8c3a-4940-8643-318de01f89d0",
+  "versionId": "",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "5809fbc9f91415fe41c10c0a1ba5a75695c7194d8a03549dd77ae46ffddc0d80"
+    "instanceId": ""
   },
   "nodeGroups": [],
-  "id": "yhE1c85wTcynvcsX",
+  "id": "",
   "tags": [
     {
       "updatedAt": "2026-07-14T03:03:04.648Z",
       "createdAt": "2026-07-14T03:02:51.746Z",
-      "id": "VlMNXkVr5hwmaNXB",
+      "id": "",
       "name": "Live"
     },
     {
       "updatedAt": "2026-07-13T02:37:01.052Z",
       "createdAt": "2026-07-13T02:37:01.052Z",
-      "id": "Vp3JuMcBZKQJ8mnf",
+      "id": "",
       "name": "Test"
     }
   ]
