@@ -20,8 +20,8 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -976,
-        288
+        -1344,
+        272
       ]
     },
     {
@@ -57,9 +57,10 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        -752,
-        288
+        -1104,
+        272
       ],
+      "executeOnce": false,
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "{GOOGLE_SHEETS_OAUTH2API}",
@@ -96,8 +97,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -304,
-        288
+        -656,
+        272
       ]
     },
     {
@@ -109,8 +110,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -32,
-        160
+        -432,
+        80
       ]
     },
     {
@@ -126,8 +127,8 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        176,
-        160
+        496,
+        -16
       ],
       "webhookId": "",
       "credentials": {
@@ -266,42 +267,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        592,
-        160
-      ],
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "{GOOGLE_SHEETS_OAUTH2API}",
-          "name": "Google Sheets account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "clear",
-        "documentId": {
-          "__rl": true,
-          "value": "1ksGR8JaDv0hYdeGCk0tG9MlMzC2XkgP7AKXaP6KqZyY",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "gid=0",
-          "mode": "list",
-          "cachedResultName": "待審核",
-          "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
-        },
-        "clear": "specificRows",
-        "startIndex": 2,
-        "rowsToDelete": 100000
-      },
-      "id": "",
-      "name": "清空待審核表單",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [
-        880,
-        304
+        864,
+        -16
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -319,7 +286,7 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": 1198703828,
+          "value": 825680770,
           "mode": "list",
           "cachedResultName": "已處理",
           "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
@@ -331,9 +298,10 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        1120,
-        304
+        1088,
+        288
       ],
+      "executeOnce": true,
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "{GOOGLE_SHEETS_OAUTH2API}",
@@ -350,8 +318,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1360,
-        304
+        1328,
+        288
       ]
     },
     {
@@ -381,6 +349,7 @@
         1600,
         304
       ],
+      "executeOnce": false,
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "{GOOGLE_SHEETS_OAUTH2API}",
@@ -397,8 +366,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1840,
-        304
+        1808,
+        288
       ]
     },
     {
@@ -513,9 +482,10 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        2080,
-        304
+        2048,
+        288
       ],
+      "executeOnce": false,
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "{GOOGLE_SHEETS_OAUTH2API}",
@@ -530,8 +500,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        384,
-        160
+        688,
+        -16
       ],
       "id": "",
       "name": "取回待標記項目"
@@ -545,8 +515,96 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -528,
-        288
+        -880,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1eELo2mXcpE1sViKHhweYnKoruhp2_JvbiqCpFOWWLnI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 418370647,
+          "mode": "list",
+          "cachedResultName": "收件人",
+          "cachedResultUrl": "{GOOGLE_SPREADSHEETS_LINK}"
+	},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -432,
+        -128
+      ],
+      "id": "7747eb75-f967-42e5-baad-970ab793847b",
+      "name": "讀取收件人清單",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. 取得從 Google Sheet 讀取到的原始資料\nlet rows = [];\n\ntry {\n    rows = $('讀取收件人清單').all();\n} catch (e) {\n    // 若節點名稱錯誤，回傳偵錯訊息\n    return { \n        allEmails: \"tess_lin@compal.com\", \n        status: \"Error: Node name '讀取收件人清單' not found\",\n        error: e.message \n    };\n}\n\n// 2. 處理ADname轉為完整 Email\nconst recipients = rows\n    .map(item => {\n        let adName = item.json.ADName;\n        if (!adName) return null; // 跳過空值\n        \n        adName = String(adName).trim(); // 去除前後空白\n        \n        // 如果內容已經包含 @，就不再重複補上，否則補上 @compal.com\n        return adName.includes('@') ? adName : `${adName}@compal.com`;\n    })\n    .filter(e => e); // 移除 null 項目\n\n// 3. 防禦性機制：若清單為空，至少回傳給 RD 管理員，確保流程不中斷\nif (recipients.length === 0) {\n    return { \n        allEmails: \"tess_lin@compal.com\", \n        count: 0,\n        status: \"Warning: Recipients list is empty\" \n    };\n}\n\n// 4. 回傳合併後的字串\nreturn {\n    allEmails: recipients.join(','),\n    count: recipients.length,\n    status: \"OK\"\n};// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        -128
+      ],
+      "id": "",
+      "name": "建立發送信箱"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "recipientData",
+        "options": {}
+      },
+      "id": "",
+      "name": "彙整收件人為單筆",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "",
+      "name": "合併信件內容與收件人",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        112,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 把合併節點吐出的資料整理成 SMTP 節點要的乾淨格式\nconst j = $input.all()[0].json;\nconst rd = j.recipientData || [];\nconst first = rd[0];\nconst toEmail = (first && (first.json ? first.json.allEmails : first.allEmails)) || '';\nreturn [{ json: { html: j.html, weekLabel: j.weekLabel, count: j.count, toEmail } }];"
+      },
+      "id": "",
+      "name": "整理寄送資料",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -16
       ]
     }
   ],
@@ -581,11 +639,16 @@
             "node": "組裝HTML公告內容",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "讀取收件人清單",
+            "type": "main",
+            "index": 0
           }
         ],
         [
           {
-            "node": "清空待審核表單",
+            "node": "讀取已處理全部",
             "type": "main",
             "index": 0
           }
@@ -596,9 +659,9 @@
       "main": [
         [
           {
-            "node": "SMTP寄送公告",
+            "node": "合併信件內容與收件人",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -615,17 +678,6 @@
       ]
     },
     "標記為已寄送": {
-      "main": [
-        [
-          {
-            "node": "清空待審核表單",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "清空待審核表單": {
       "main": [
         [
           {
@@ -696,6 +748,61 @@
         [
           {
             "node": "本週是否有核可項目",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "讀取收件人清單": {
+      "main": [
+        [
+          {
+            "node": "建立發送信箱",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "建立發送信箱": {
+      "main": [
+        [
+          {
+            "node": "彙整收件人為單筆",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "彙整收件人為單筆": {
+      "main": [
+        [
+          {
+            "node": "合併信件內容與收件人",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "合併信件內容與收件人": {
+      "main": [
+        [
+          {
+            "node": "整理寄送資料",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "整理寄送資料": {
+      "main": [
+        [
+          {
+            "node": "SMTP寄送公告",
             "type": "main",
             "index": 0
           }
